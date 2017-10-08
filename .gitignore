@@ -1,0 +1,11 @@
+*.cache
+*.dump
+*.shelve
+*.pyc
+*.pkl
+*.*~
+*.pkl.old
+*.pdf
+*.ttf
+*.bz2
+*~
