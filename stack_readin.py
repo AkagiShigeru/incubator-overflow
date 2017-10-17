@@ -65,6 +65,7 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
     """ Uses other utility function to create hdf store with DataFrame of posts.
         Optionally dumps individual posts into zipped files on the hard disk."""
     base = os.path.split(finp)[0]
+    print "Base path:", base
 
     post_dict = defaultdict(list)
 
@@ -84,8 +85,11 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
 
         # dump actual post entries into seperate files (not to blow up dataframe too much)
         if dump_posts:
-            with gzip.open(os.path.join(base, "post_%i.txt.gz" % entrydict["Id"], "wb")) as f:
-                f.write(UnescapeHTML(entrydict["Body"]))
+            with gzip.open(os.path.join(base, "posts/post_%s.txt.gz" % entrydict["Id"]), "wb") as f:
+                try:
+                    f.write(UnescapeHTML(entrydict["Body"]))
+                except:
+                    f.write(entrydict["Body"])
 
         for ename, edefault in cols_and_defaults.items():
 
@@ -142,10 +146,11 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
 if __name__ == "__main__":
     f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
 
-    CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_first5M.hdf5",
-                    limit=5000000)
+    # CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_first5M.hdf5",
+    #                 limit=5000000)
 
-    # CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_all.hdf5")
+    CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_all.hdf5",
+                    dump_posts=True)
 
     # for testing and debugging
     # i = 0
