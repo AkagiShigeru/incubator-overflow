@@ -36,7 +36,8 @@ own_cols = {"BodySize": lambda e: len(e["Body"]),
             "BodyNQMarks": lambda e: e["Body"].count("?")}
 
 cols_and_converters = {"Tags": lambda t: CleanTags(t)[:150], "Body": lambda x: "",
-                       "Title": lambda t: t[:300]}
+                       "Title": lambda t: t[:300], "OwnerDisplayName": lambda n: n[:30],
+                       "LastEditorDisplayName": lambda n: n[:30]}
 
 
 def IterateZippedXML(zf, delim=" />\r\n  <row", debug=False):
@@ -85,11 +86,19 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
 
         # dump actual post entries into seperate files (not to blow up dataframe too much)
         if dump_posts:
-            with gzip.open(os.path.join(base, "posts/post_%s.txt.gz" % entrydict["Id"]), "wb") as f:
-                try:
-                    f.write(UnescapeHTML(entrydict["Body"]))
-                except:
-                    f.write(entrydict["Body"])
+            posttype = int(entrydict["PostTypeId"])
+            answercount = 0
+            if "AnswerCount" in entrydict:
+                answercount = int(entrydict["AnswerCount"])
+
+            # only saving questions (posttype == 1) with at least 3 answers and which are closed (properly responded to)
+            if posttype == 1 and answercount > 2 and "ClosedDate" in entrydict:
+
+                with gzip.open(os.path.join(base, "posts/post_%s.txt.gz" % entrydict["Id"]), "wb") as f:
+                    try:
+                        f.write(UnescapeHTML(entrydict["Body"]))
+                    except:
+                        f.write(entrydict["Body"])
 
         for ename, edefault in cols_and_defaults.items():
 
@@ -125,7 +134,8 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
 
             df = pd.DataFrame(post_dict)
             store.append("posts", df, format="table", data_columns=True,
-                         min_itemsize={"Title": 300, "Tags": 150})
+                         min_itemsize={"Title": 300, "Tags": 150, "OwnerDisplayName": 30,
+                                       "LastEditorDisplayName": 30})
             post_dict.clear()
             del df
 
