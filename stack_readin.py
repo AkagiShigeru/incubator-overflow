@@ -115,7 +115,7 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
         for custom in own_cols:
             post_dict[custom].append(own_cols[custom](entrydict))
 
-        if n % 1000000 == 0:
+        if n % 200000 == 0:
 
             print "Processed %i posts!" % n
 
@@ -126,13 +126,14 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
             del df
 
     # we need to push the remainder of posts left in the dictionary
-    if len(post_dict.values()[0]):
+    if post_dict.values() != []:
 
         df = pd.DataFrame(post_dict)
         store.append("posts", df, format="table", data_columns=True)
         post_dict.clear()
         del df
 
+    # ...and always close the store ;)
     store.close()
 
     return True
@@ -141,9 +142,12 @@ def CreateHDFStores(finp, outstore, dump_posts=False, limit=None):
 if __name__ == "__main__":
     f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
 
-    CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts.hdf5")
+    CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_first5M.hdf5",
+                    limit=5000000)
 
-    # for testing
+    # CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_all.hdf5")
+
+    # for testing and debugging
     # i = 0
     # cols = defaultdict(int)
     # for l in IterateZippedXML(f):
