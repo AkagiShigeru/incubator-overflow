@@ -1,0 +1,8 @@
+Example post structure in XML:
+
+# format: <row Id="number" PostTypeId="number" CreationDate="2008-08-01T00:42:38.903" Score="number"
+#          ViewCount="number" Body="any text" OwnerUserId="number" LastEditorUserId="number"
+#          LastEditorDisplayName="name" LastEditDate="2016-12-20T19:22:26.510"
+#          LastActivityDate="2017-07-31T11:30:41.573"
+#          Title="title text" Tags="tag1;tag2;tag3"
+#          AnswerCount="number" CommentCount="number" FavoriteCount="number" />
