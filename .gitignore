@@ -11,3 +11,4 @@
 *.hdf
 *.hdf5
 caches/
+.ipynb_checkpoints/

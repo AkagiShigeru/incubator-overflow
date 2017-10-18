@@ -80,6 +80,7 @@ def QuickSlicePlot(x, y, z, xbins=0, nxbins=None, zbins=5, zrange=None,
     from pyik.mplext import ViolinPlot
     from scipy.stats.mstats import mquantiles
     from pyik.fit import ChiSquareFunction
+    from pyik.numpyext import bin
 
     if axes is None:
         fig = plt.figure()
