@@ -10,3 +10,4 @@
 *.bz2
 *.hdf
 *.hdf5
+caches/
