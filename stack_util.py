@@ -5,6 +5,7 @@
 #
 #
 import re
+import pandas as pd
 
 from lxml.html import fromstring
 from HTMLParser import HTMLParser
@@ -36,6 +37,10 @@ def ParsePostFromXML(l):
 
 def CleanTags(tagstring):
     return tagstring.replace("&gt;", "").replace("&lt;", ";")
+
+
+def ConvertToJulianDate(datestr):
+    return pd.to_datetime(datestr).to_julian_date()
 
 
 def SplitTags(tagstring):
