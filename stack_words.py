@@ -32,15 +32,17 @@ def GetRelevantWords(post, get_ratio=False):
     p_clean = re.sub(r"<\/?\w*>", " ", p_clean)
     p_clean = p_clean.replace(":", "").lower()
 
-    words = []
+    words = defaultdict(int)
 
     n_noun = 0
     n_verb = 0
+    n_words = 0
 
     for word in nlp(p_clean):
         if word.lemma_ not in STOP_WORDS.union(u"-PRON-"):
             if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
-                words.append(word.lemma_)
+                words[word.lemma_] += 1
+                n_words += 1
                 if get_ratio:
                     if word.pos_ == "NOUN":
                         n_noun += 1
@@ -49,11 +51,11 @@ def GetRelevantWords(post, get_ratio=False):
 
     if get_ratio:
         if n_noun > 0:
-            return words, n_verb * 1. / n_noun
+            return words, n_words, n_verb * 1. / n_noun
         else:
-            return words, -1.
+            return words, n_words, -1.
     else:
-        return words
+        return words, n_words
 
 
 def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
@@ -76,8 +78,9 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
         entrydict["Body_unesc"] = UnescapeHTML(entrydict["Body"].decode("utf-8"))
 
-        for w in GetRelevantWords(entrydict["Body_unesc"]):
-            word_dict[w] += 1
+        words, _ = GetRelevantWords(entrydict["Body_unesc"])
+        for w, mult in words:
+            word_dict[w] += mult
 
         if n % 5000 == 0:
             print n, len(word_dict.keys())
@@ -91,10 +94,10 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
     return True
 
 
-def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
+def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
 
     from scipy.stats import poisson
-    from collections import Counter
+    # from collections import Counter
 
     base = os.path.split(finp)[0]
     print "Base path:", base
@@ -105,14 +108,15 @@ def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
 
     store = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
     store.put("words", pd.DataFrame(), format="table",
-              data_columns=["Id"])
+              data_columns=["Id", "nwords", "ratios", "probs"])
 
     # frequencies of words in overall dict
     wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
     wdict = wdict[wdict.n > 10]
 
-    # 1000 most common words
-    wdict_hottest = wdict.sort_values(by="n", ascending=False).iloc[:1000]
+    # wdict = wdict.sort_values(by="n", ascending=False).iloc[:1000]
+    wdict = wdict.sort_values(by="n", ascending=False)
+    wdict["order"] = np.arange(1, wdict.shape[0] + 1)
 
     n = 0
     for post in IterateZippedXML(finp):
@@ -127,35 +131,25 @@ def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
 
         entrydict["Body_unesc"] = UnescapeHTML(entrydict["Body"].decode("utf-8"))
 
-        ws, ratio = GetRelevantWords(entrydict["Body_unesc"], get_ratio=True)
-        nws = len(ws)
+        ws, nws, ratio = GetRelevantWords(entrydict["Body_unesc"], get_ratio=True)
 
-        ws_dict = Counter(ws)
+        wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
+        wsdf = wsdf.merge(wdict, left_on="w", right_on="words")
 
-        multiprob = 1
-        hotindices = []
+        multiprob = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
+        hotindices = wsdf[wsdf.order < order_cut].order.values
 
-        for w, mult in ws_dict.items():
-            ind = np.where(wdict.words.values == w)[0]
-            if len(ind) > 0:
-                ind = ind[0]
-
-                freq = wdict.iloc[ind].freqs
-                multiprob *= poisson.pmf(mult, freq * nws, loc=0)
-
-                ind_hot = np.where(wdict_hottest.values == w)[0]
-                if len(ind_hot) > 0:
-                    hotindices.append(ind_hot[0])
-
-        words["ratios"].append(ratio)
-        words["probs"].append(multiprob)
-        words["hot_indices"].append(hotindices)
         words["Id"].append(entrydict["Id"])
+        words["ratios"].append(ratio)
+        words["nwords"].append(nws)
+        words["probs"].append(multiprob)
+        words["hot_indices"].append(";".join(map(str, hotindices)))
 
         if n % 1000 == 0:
 
             df = pd.DataFrame(words)
-            store.append("words", df, format="table", data_columns=["Id"])
+            store.append("words", df, format="table",
+                         data_columns=["Id", "nwords", "ratios", "probs"])
             words.clear()
             del df
 
@@ -165,7 +159,8 @@ def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
     if words.values() != []:
 
         df = pd.DataFrame(words)
-        store.append("words", df, format="table", data_columns=["Id"])
+        store.append("words", df, format="table",
+                     data_columns=["Id", "nwords", "ratios", "probs"])
         words.clear()
         del df
 
@@ -216,4 +211,4 @@ if __name__ == "__main__":
 
     # build word lists
     BuildWordLists(f, "./words_observed_.hdf5",
-                   pd.HDFStore("words.hdf5", "r", complib="blosc", complevel=9).get("all"))
+                   pd.HDFStore("dictionaries/words_2008.hdf5", "r", complib="blosc", complevel=9).get("all"))
