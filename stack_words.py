@@ -107,16 +107,18 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
     words = defaultdict(list)
 
     store = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
-    store.put("words", pd.DataFrame(), format="table",
-              data_columns=["Id", "nwords", "ratios", "probs"])
+    store.put("words", pd.DataFrame(), format="table", data_columns=["Id", "nwords", "ratios", "probs"],
+              min_itemsize={"hot_indices": 500})
 
     # frequencies of words in overall dict
     wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
-    wdict = wdict[wdict.n > 10]
+    wdict = wdict[wdict.n > 100]
 
     # wdict = wdict.sort_values(by="n", ascending=False).iloc[:1000]
     wdict = wdict.sort_values(by="n", ascending=False)
     wdict["order"] = np.arange(1, wdict.shape[0] + 1)
+
+    wdict.set_index("words", inplace=True, drop=False)
 
     n = 0
     for post in IterateZippedXML(finp):
@@ -134,7 +136,8 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
         ws, nws, ratio = GetRelevantWords(entrydict["Body_unesc"], get_ratio=True)
 
         wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
-        wsdf = wsdf.merge(wdict, left_on="w", right_on="words")
+        wsdf.set_index("w", inplace=True, drop=False)
+        wsdf = wsdf.join(wdict, how="inner")
 
         multiprob = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
         hotindices = wsdf[wsdf.order < order_cut].order.values
@@ -143,13 +146,14 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
         words["ratios"].append(ratio)
         words["nwords"].append(nws)
         words["probs"].append(multiprob)
-        words["hot_indices"].append(";".join(map(str, hotindices)))
+        words["hot_indices"].append(";".join(map(str, hotindices))[:500])
+        # words["hot_indices"].append(hotindices)
 
         if n % 1000 == 0:
 
             df = pd.DataFrame(words)
-            store.append("words", df, format="table",
-                         data_columns=["Id", "nwords", "ratios", "probs"])
+            store.append("words", df, format="table", data_columns=["Id", "nwords", "ratios", "probs"],
+                         min_itemsize={"hot_indices": 500})
             words.clear()
             del df
 
@@ -159,8 +163,8 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
     if words.values() != []:
 
         df = pd.DataFrame(words)
-        store.append("words", df, format="table",
-                     data_columns=["Id", "nwords", "ratios", "probs"])
+        store.append("words", df, format="table", data_columns=["Id", "nwords", "ratios", "probs"],
+                     min_itemsize={"hot_indices": 500})
         words.clear()
         del df
 
