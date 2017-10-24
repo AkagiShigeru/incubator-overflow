@@ -74,7 +74,6 @@ def IterateZippedXML(zf, delim=" />\r\n  <row", debug=False):
 
 
 def UncFromCov(cov):
-  import numpy as np
   cov = np.atleast_1d(cov)
   assert cov.shape[0] == cov.shape[1], "Covariance matrix has wrong shape!"
   return np.sqrt([cov[i][i] for i in range(len(cov))])

@@ -95,7 +95,8 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
 
 def BuildWordLists(instore, wdict, indb, outstore,
-                   limit=1000000, order_cut=20000000):
+                   limit=1000000, order_cut=20000000,
+                   onlyquestions=True):
 
     from scipy.stats import poisson, multinomial
 
@@ -122,7 +123,7 @@ def BuildWordLists(instore, wdict, indb, outstore,
 
     # instore
     instore = pd.HDFStore(instore, "r", complib="blosc", complevel=9)
-    chunks = store.select("posts", chunksize=10000, iterator=True)
+    chunks = instore.select("posts", chunksize=10000, iterator=True)
 
     # db with all posts
     conn = sqlite3.connect(indb)
@@ -137,14 +138,16 @@ def BuildWordLists(instore, wdict, indb, outstore,
 
             pid = chunk.iloc[i].Id
 
+            if onlyquestions and (chunk.iloc[i].PostTypeId != 1):
+                continue
+
             n += 1
 
             # read-in limit reached
             if n > limit:
                 break
 
-            post = conn.execute("SELECT post FROM posts WHERE id=?", (pid,)).fetchall()[0]
-            post = UnescapeHTML(entrydict["Body"].decode("utf-8"))
+            post = conn.execute("SELECT post FROM posts WHERE id=?", (pid,)).fetchall()[0][0]
 
             ws, nws, ratio = GetRelevantWords(post, get_ratio=True)
 
@@ -153,16 +156,18 @@ def BuildWordLists(instore, wdict, indb, outstore,
             wsdf = wsdf.join(wdict, how="inner")
 
             prob_poisson = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
-            multiprob = multinomial.pmf(wsdf.mult, nws, p=nws * wsdf.freqs)
+            prob_bern = np.prod((nws * wsdf.freqs) ** np.minimum(1, wsdf.mult) * (1 - nws * wsdf.freqs) ** (1 - np.minimum(1, wsdf.mult)))
+            # multiprob = multinomial.pmf(wsdf.mult, nws, p=nws * wsdf.freqs)
             hotindices = wsdf[wsdf.order < order_cut].order.values
 
-            words["Id"].append(int(entrydict["Id"]))
+            words["Id"].append(pid)
             words["ratio"].append(ratio)
             words["nwords"].append(nws)
-            words["prob_multi"].append(multiprob)
+            # words["prob_multi"].append(multiprob)
+            words["prob_bern"].append(prob_bern)
             words["prob_poiss"].append(prob_poisson)
-            # words["ordersum"].append(wsdf.order.sum())
-            words["hot_indices"].append(";".join(map(str, hotindices))[:500])
+            words["ordersum"].append(wsdf.order.sum())
+            words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
 
             if n % 1000 == 0:
 
