@@ -10,6 +10,8 @@ import pandas as pd
 from lxml.html import fromstring
 from HTMLParser import HTMLParser
 
+from libarchive.public import file_reader
+
 
 g_carr = ["k", "purple", "green", "#b22222", "#4682b4", "m", "r", "b", "c",
           "brown", "grey", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c",
@@ -51,6 +53,23 @@ def SplitTags(tagstring):
         if len(split) > 0:
             return split[1:]
     return []
+
+
+def IterateZippedXML(zf, delim=" />\r\n  <row", debug=False):
+    """ Generator that returns lines of zipped file line by line."""
+    with file_reader(zf) as zhandler:
+        for onefile in zhandler:
+            line = ""
+            for block in onefile.get_blocks():
+                line += block
+                if debug:
+                    print block
+                while delim in line:
+                    pos = line.index(delim)
+                    yield line[:pos].strip() + "/>"
+                    line = line[pos + len(delim):].strip()
+                if delim in line:
+                    yield line + "/>"
 
 
 def UncFromCov(cov):

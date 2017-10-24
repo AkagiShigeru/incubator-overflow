@@ -5,7 +5,6 @@
 #
 #
 import os
-from libarchive.public import file_reader
 import gzip
 
 from collections import defaultdict
@@ -52,23 +51,6 @@ cols_and_converters = {"Tags": lambda t: CleanTags(t)[:150], "Body": lambda x: "
                        "CreationDate": ConvertToJulianDate, "ClosedDate": ConvertToJulianDate,
                        "CommunityOwnedDate": ConvertToJulianDate, "LastActivityDate": ConvertToJulianDate,
                        "LastEditDate": ConvertToJulianDate}
-
-
-def IterateZippedXML(zf, delim=" />\r\n  <row", debug=False):
-    """ Generator that returns lines of zipped file line by line."""
-    with file_reader(zf) as zhandler:
-        for onefile in zhandler:
-            line = ""
-            for block in onefile.get_blocks():
-                line += block
-                if debug:
-                    print block
-                while delim in line:
-                    pos = line.index(delim)
-                    yield line[:pos].strip() + "/>"
-                    line = line[pos + len(delim):].strip()
-                if delim in line:
-                    yield line + "/>"
 
 
 # TODO: function to read split and unpacked XML in parallel (using pmap)
