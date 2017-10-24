@@ -99,13 +99,6 @@ def CreateHDFStores(finp, outstore, fields=None, dump_posts=False, limit=None,
 
     post_dict = defaultdict(list)
 
-    word_dict = defaultdict(int)
-    word_dict_python = defaultdict(int)
-    word_dict_cpp = defaultdict(int)
-
-    # store = None
-    # year = None
-
     if fields is None:
         fields = cols_and_defaults
 
@@ -152,41 +145,6 @@ def CreateHDFStores(finp, outstore, fields=None, dump_posts=False, limit=None,
                         f.write(UnescapeHTML(entrydict["Body"]))
                     except:
                         f.write(entrydict["Body"])
-
-        if create_word_dicts:
-            p = entrydict["Body_unesc"]
-            p_words = re.sub("<.*?>", "", p).replace(",", " ").replace("\n", " ").split()
-            for word in p_words:
-                word_dict[word] += 1
-
-            if "Tags" in entrydict:
-                t = entrydict["Tags"]
-                if "python" in t:
-                    for word in p_words:
-                        word_dict_python[word] += 1
-                if "c++" in t:
-                    for word in p_words:
-                        word_dict_cpp[word] += 1
-
-        # for old non-parallel method
-        # if year is None or year != post_year:
-
-        #     print "Starting store for events in year %i." % post_year
-
-        #     # dump events that are still from last year into corresponding store
-        #     if store is not None:
-        #         df = pd.DataFrame(post_dict)
-        #         store.append("posts", df, format="table",
-        #                      data_columns=data_cols, min_itemsize=isizes)
-        #         post_dict.clear()
-        #         del df
-        #         store.close()
-
-        #     store = pd.HDFStore("%s%i.hdf5" % (base_out, post_year), "w", complib="blosc", complevel=9)
-        #     if "posts" not in store:
-        #         store.put("posts", pd.DataFrame(), format="table",
-        #                   data_columns=data_cols, min_itemsize=isizes)
-        #     year = post_year
 
         for ename, edefault in fields.items():
 
