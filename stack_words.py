@@ -94,7 +94,7 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
     return True
 
 
-def BuildWordLists(instore, wdict, indb, outstore,
+def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
                    limit=1000000, order_cut=20000000,
                    onlyquestions=True):
 
@@ -103,12 +103,12 @@ def BuildWordLists(instore, wdict, indb, outstore,
     words = defaultdict(list)
 
     # outstore
-    outstore = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
+    outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
     outstore.put("words", pd.DataFrame(), format="table",
                  data_columns=["Id", "nwords", "ratio"],
                  min_itemsize={"hot_indices": 500})
 
-    wdict = pd.HDFStore(wdict, "r", complib="blosc", complevel=9).get("all")
+    wdict = pd.HDFStore(wdict_path, "r", complib="blosc", complevel=9).get("all")
 
     # frequencies of words in overall dict
     wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
@@ -116,17 +116,17 @@ def BuildWordLists(instore, wdict, indb, outstore,
     wdict = wdict.sort_values(by="n", ascending=False)
     wdict["order"] = np.arange(1, wdict.shape[0] + 1)
 
-    # take only words that describe 95 % of sum of all words
-    cutoff = np.where((wdict.n.cumsum() * 1. / wdict.n.sum()) > 0.95)[0][0]
+    # take only words that describe 90 % of sum of all words
+    cutoff = np.where((wdict.n.cumsum() * 1. / wdict.n.sum()) > 0.90)[0][0]
     wdict = wdict.iloc[:cutoff]
     wdict.set_index("words", inplace=True, drop=False)
 
     # instore
-    instore = pd.HDFStore(instore, "r", complib="blosc", complevel=9)
+    instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
     chunks = instore.select("posts", chunksize=10000, iterator=True)
 
     # db with all posts
-    conn = sqlite3.connect(indb)
+    conn = sqlite3.connect(indb_path)
 
     n = 0
     for chunk in chunks:
@@ -169,22 +169,22 @@ def BuildWordLists(instore, wdict, indb, outstore,
             words["ordersum"].append(wsdf.order.sum())
             words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
 
-            if n % 1000 == 0:
+            if n % 500 == 0:
 
                 df = pd.DataFrame(words)
-                store.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                             min_itemsize={"hot_indices": 500})
+                outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
+                                min_itemsize={"hot_indices": 500})
                 words.clear()
                 del df
 
-                print "Processed %i posts." % n
+                print "Processed %i posts of %s." % (n, instore_path)
 
     # we need to push the remainder of posts left in the dictionary
     if words.values() != []:
 
         df = pd.DataFrame(words)
-        store.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                     min_itemsize={"hot_indices": 500})
+        outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
+                        min_itemsize={"hot_indices": 500})
         words.clear()
         del df
 
@@ -235,7 +235,10 @@ if __name__ == "__main__":
     # BuildDictionariesFromDB(metas[0], dbpath)
     # BuildDictionariesFromFile(f, limit=1000000)
 
-    BuildWordLists("/home/alex/data/stackexchange/overflow/caches/posts_2017.hdf5",
-                   "dictionaries/words_2017.hdf5",
-                   dbpath,
-                   "words/features_2017.hdf5")
+    def BuildAllLists(year):
+        BuildWordLists("/home/alex/data/stackexchange/overflow/caches/posts_%s.hdf5" % year,
+                       "dictionaries/words_%s.hdf5" % year,
+                       dbpath,
+                       "words/features_%s.hdf5" % year)
+
+    pmap(BuildAllLists, [2010, 2012, 2014, 2016, 2017], numprocesses=5)

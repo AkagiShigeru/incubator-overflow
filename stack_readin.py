@@ -214,8 +214,6 @@ if __name__ == "__main__":
         CreateHDFStores(f, "/home/alex/data/stackexchange/overflow/caches/posts_.hdf5",
                         dump_posts=False, create_word_dicts=False, year=y)
 
-    from pyik.performance import pmap
-    import numpy as np
     # years = np.arange(2008, 2018)
     years = [2009, 2011]
     pmap(CreateYearly, years, numprocesses=8)
