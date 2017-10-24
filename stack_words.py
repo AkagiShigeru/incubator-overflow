@@ -142,7 +142,7 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
         multiprob = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
         hotindices = wsdf[wsdf.order < order_cut].order.values
 
-        words["Id"].append(entrydict["Id"])
+        words["Id"].append(int(entrydict["Id"]))
         words["ratios"].append(ratio)
         words["nwords"].append(nws)
         words["probs"].append(multiprob)
