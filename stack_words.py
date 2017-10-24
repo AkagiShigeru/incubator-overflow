@@ -94,84 +94,98 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
     return True
 
 
-# TODO: make this function a bit more general and parallelizable
-def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
+def BuildWordLists(instore, wdict, indb, outstore,
+                   limit=1000000, order_cut=20000000):
 
-    from scipy.stats import poisson
-    # from collections import Counter
-
-    base = os.path.split(finp)[0]
-    print "Base path:", base
-
-    assert wdict is not None, "Word dictionary must be specified for this function to work!"
+    from scipy.stats import poisson, multinomial
 
     words = defaultdict(list)
 
-    store = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
-    store.put("words", pd.DataFrame(), format="table",
-              data_columns=["Id", "nwords", "ratios", "probs"],
-              min_itemsize={"hot_indices": 500})
+    # outstore
+    outstore = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
+    outstore.put("words", pd.DataFrame(), format="table",
+                 data_columns=["Id", "nwords", "ratio"],
+                 min_itemsize={"hot_indices": 500})
+
+    wdict = pd.HDFStore(wdict, "r", complib="blosc", complevel=9).get("all")
 
     # frequencies of words in overall dict
     wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
-    wdict = wdict[wdict.n > 100]
 
-    # wdict = wdict.sort_values(by="n", ascending=False).iloc[:1000]
     wdict = wdict.sort_values(by="n", ascending=False)
     wdict["order"] = np.arange(1, wdict.shape[0] + 1)
 
+    # take only words that describe 95 % of sum of all words
+    cutoff = np.where((wdict.n.cumsum() * 1. / wdict.n.sum()) > 0.95)[0][0]
+    wdict = wdict.iloc[:cutoff]
     wdict.set_index("words", inplace=True, drop=False)
 
+    # instore
+    instore = pd.HDFStore(instore, "r", complib="blosc", complevel=9)
+    chunks = store.select("posts", chunksize=10000, iterator=True)
+
+    # db with all posts
+    conn = sqlite3.connect(indb)
+
     n = 0
-    for post in IterateZippedXML(finp):
+    for chunk in chunks:
 
-        n += 1
-
-        # read-in limit reached
-        if limit and n > limit:
+        if n > limit:
             break
 
-        entrydict = dict(ParsePostFromXML(post))
+        for i in range(chunk.shape[0]):
 
-        entrydict["Body_unesc"] = UnescapeHTML(entrydict["Body"].decode("utf-8"))
+            pid = chunk.iloc[i].Id
 
-        ws, nws, ratio = GetRelevantWords(entrydict["Body_unesc"], get_ratio=True)
+            n += 1
 
-        wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
-        wsdf.set_index("w", inplace=True, drop=False)
-        wsdf = wsdf.join(wdict, how="inner")
+            # read-in limit reached
+            if n > limit:
+                break
 
-        multiprob = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
-        hotindices = wsdf[wsdf.order < order_cut].order.values
+            post = conn.execute("SELECT post FROM posts WHERE id=?", (pid,)).fetchall()[0]
+            post = UnescapeHTML(entrydict["Body"].decode("utf-8"))
 
-        words["Id"].append(int(entrydict["Id"]))
-        words["ratios"].append(ratio)
-        words["nwords"].append(nws)
-        words["probs"].append(multiprob)
-        words["hot_indices"].append(";".join(map(str, hotindices))[:500])
-        # words["hot_indices"].append(hotindices)
+            ws, nws, ratio = GetRelevantWords(post, get_ratio=True)
 
-        if n % 1000 == 0:
+            wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
+            wsdf.set_index("w", inplace=True, drop=False)
+            wsdf = wsdf.join(wdict, how="inner")
 
-            df = pd.DataFrame(words)
-            store.append("words", df, format="table", data_columns=["Id", "nwords", "ratios", "probs"],
-                         min_itemsize={"hot_indices": 500})
-            words.clear()
-            del df
+            prob_poisson = np.prod(poisson.pmf(wsdf.mult, nws * wsdf.freqs))
+            multiprob = multinomial.pmf(wsdf.mult, nws, p=nws * wsdf.freqs)
+            hotindices = wsdf[wsdf.order < order_cut].order.values
 
-            print "Processed %i posts." % n
+            words["Id"].append(int(entrydict["Id"]))
+            words["ratio"].append(ratio)
+            words["nwords"].append(nws)
+            words["prob_multi"].append(multiprob)
+            words["prob_poiss"].append(prob_poisson)
+            # words["ordersum"].append(wsdf.order.sum())
+            words["hot_indices"].append(";".join(map(str, hotindices))[:500])
+
+            if n % 1000 == 0:
+
+                df = pd.DataFrame(words)
+                store.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
+                             min_itemsize={"hot_indices": 500})
+                words.clear()
+                del df
+
+                print "Processed %i posts." % n
 
     # we need to push the remainder of posts left in the dictionary
     if words.values() != []:
 
         df = pd.DataFrame(words)
-        store.append("words", df, format="table", data_columns=["Id", "nwords", "ratios", "probs"],
+        store.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
                      min_itemsize={"hot_indices": 500})
         words.clear()
         del df
 
-    # ...and always close the store ;)
-    store.close()
+    # ...and always close the stores ;)
+    outstore.close()
+    instore.close()
 
     return True
 
@@ -210,11 +224,13 @@ if __name__ == "__main__":
     metas = sorted(glob("/home/alex/data/stackexchange/overflow/caches/posts_*.hdf5"))
     dbpath = "/home/alex/data/stackexchange/overflow/caches/posts.db"
 
+    # original input file (zipped)
     f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
 
     # BuildDictionariesFromDB(metas[0], dbpath)
     # BuildDictionariesFromFile(f, limit=1000000)
 
-    # build word lists
-    BuildWordLists(f, "./words_observed_.hdf5",
-                   pd.HDFStore("dictionaries/words_2008.hdf5", "r", complib="blosc", complevel=9).get("all"))
+    BuildWordLists("/home/alex/data/stackexchange/overflow/caches/posts_2017.hdf5",
+                   "dictionaries/words_2017.hdf5",
+                   dbpath,
+                   "words/features_2017.hdf5")

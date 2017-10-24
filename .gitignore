@@ -11,4 +11,6 @@
 *.hdf
 *.hdf5
 caches/
+words/
+dictionaries/
 .ipynb_checkpoints/
