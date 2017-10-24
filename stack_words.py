@@ -20,6 +20,42 @@ import spacy
 nlp = spacy.load("en_core_web_md")
 
 
+def GetRelevantWords(post, get_ratio=False):
+    """
+    Yields relevant words in post after some cleaning.
+    Uses spacy to select words.
+    """
+    p_clean = post.replace("\n", " ")
+
+    # non-greedy code removal
+    p_clean = re.sub(r"<code>.*?</code>", " ", p_clean)
+    p_clean = re.sub(r"<\/?\w*>", " ", p_clean)
+    p_clean = p_clean.replace(":", "").lower()
+
+    words = []
+
+    n_noun = 0
+    n_verb = 0
+
+    for word in nlp(p_clean):
+        if word.lemma_ not in STOP_WORDS.union(u"-PRON-"):
+            if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
+                words.append(word.lemma_)
+                if get_ratio:
+                    if word.pos_ == "NOUN":
+                        n_noun += 1
+                    if word.pos_ == "VERB":
+                        n_verb += 1
+
+    if get_ratio:
+        if n_noun > 0:
+            return words, n_verb * 1. / n_noun
+        else:
+            return words, -1.
+    else:
+        return words
+
+
 def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
     base = os.path.split(finp)[0]
@@ -40,28 +76,13 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
         entrydict["Body_unesc"] = UnescapeHTML(entrydict["Body"].decode("utf-8"))
 
-        p = entrydict["Body_unesc"]
-
-        p_clean = p.replace("\n", " ")
-
-        # not greedy code removal
-        p_clean = re.sub(r"<code>.*?</code>", " ", p_clean)
-        p_clean = re.sub(r"<\/?\w*>", " ", p_clean)
-        p_clean = p_clean.replace(":", "").lower()
-
-        # print p_clean
-
-        # for word in p_clean.split():
-        for word in nlp(p_clean):
-            if word.lemma_ not in STOP_WORDS:
-                if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
-                    # print word, word.lemma_, word.tag_, word.pos_
-                    word_dict[word.lemma_] += 1
+        for w in GetRelevantWords(entrydict["Body_unesc"]):
+            word_dict[w] += 1
 
         if n % 5000 == 0:
             print n, len(word_dict.keys())
 
-    # saving
+    # saving to hdf
     words = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
     store = pd.HDFStore(outp, "w", complib="blosc", complevel=9)
     store.put("all", words)
@@ -71,6 +92,9 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
 
 def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
+
+    from scipy.stats import poisson
+    from collections import Counter
 
     base = os.path.split(finp)[0]
     print "Base path:", base
@@ -82,6 +106,13 @@ def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
     store = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
     store.put("words", pd.DataFrame(), format="table",
               data_columns=["Id"])
+
+    # frequencies of words in overall dict
+    wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
+    wdict = wdict[wdict.n > 10]
+
+    # 1000 most common words
+    wdict_hottest = wdict.sort_values(by="n", ascending=False).iloc[:1000]
 
     n = 0
     for post in IterateZippedXML(finp):
@@ -96,22 +127,52 @@ def BuildWordLists(finp, outstore, wdict=None, limit=1000000):
 
         entrydict["Body_unesc"] = UnescapeHTML(entrydict["Body"].decode("utf-8"))
 
-        # not greedy code removal
-        p_clean = re.sub(r"<code>.*?</code>", " ", p_clean)
-        p_clean = re.sub(r"<\/?\w*>", " ", p_clean)
-        p_clean = p_clean.replace(":", "").lower()
+        ws, ratio = GetRelevantWords(entrydict["Body_unesc"], get_ratio=True)
+        nws = len(ws)
 
-        # print p_clean
+        ws_dict = Counter(ws)
 
-        # for word in p_clean.split():
-        for word in nlp(p_clean):
-            if word.lemma_ not in STOP_WORDS:
-                if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
-                    # print word, word.lemma_, word.tag_, word.pos_
-                    word_dict[word.lemma_] += 1
+        multiprob = 1
+        hotindices = []
 
-        if n % 5000 == 0:
-            print n, len(word_dict.keys())
+        for w, mult in ws_dict.items():
+            ind = np.where(wdict.words.values == w)[0]
+            if len(ind) > 0:
+                ind = ind[0]
+
+                freq = wdict.iloc[ind].freqs
+                multiprob *= poisson.pmf(mult, freq * nws, loc=0)
+
+                ind_hot = np.where(wdict_hottest.values == w)[0]
+                if len(ind_hot) > 0:
+                    hotindices.append(ind_hot[0])
+
+        words["ratios"].append(ratio)
+        words["probs"].append(multiprob)
+        words["hot_indices"].append(hotindices)
+        words["Id"].append(entrydict["Id"])
+
+        if n % 1000 == 0:
+
+            df = pd.DataFrame(words)
+            store.append("words", df, format="table", data_columns=["Id"])
+            words.clear()
+            del df
+
+            print "Processed %i posts." % n
+
+    # we need to push the remainder of posts left in the dictionary
+    if words.values() != []:
+
+        df = pd.DataFrame(words)
+        store.append("words", df, format="table", data_columns=["Id"])
+        words.clear()
+        del df
+
+    # ...and always close the store ;)
+    store.close()
+
+    return True
 
 
 # unfinished, not sure if makes sense due to very slow sqlite access...
@@ -153,5 +214,6 @@ if __name__ == "__main__":
     # BuildDictionariesFromDB(metas[0], dbpath)
     # BuildDictionariesFromFile(f, limit=1000000)
 
-    BuildWordLists(f, "./word_observed_.hdf5",
+    # build word lists
+    BuildWordLists(f, "./words_observed_.hdf5",
                    pd.HDFStore("words.hdf5", "r", complib="blosc", complevel=9).get("all"))

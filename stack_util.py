@@ -6,6 +6,7 @@
 #
 import re
 import pandas as pd
+import numpy as np
 
 from lxml.html import fromstring
 from HTMLParser import HTMLParser
