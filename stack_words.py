@@ -94,6 +94,7 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
     return True
 
 
+# TODO: make this function a bit more general and parallelizable
 def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
 
     from scipy.stats import poisson
@@ -107,7 +108,8 @@ def BuildWordLists(finp, outstore, wdict=None, limit=100000, order_cut=100):
     words = defaultdict(list)
 
     store = pd.HDFStore(outstore, "w", complib="blosc", complevel=9)
-    store.put("words", pd.DataFrame(), format="table", data_columns=["Id", "nwords", "ratios", "probs"],
+    store.put("words", pd.DataFrame(), format="table",
+              data_columns=["Id", "nwords", "ratios", "probs"],
               min_itemsize={"hot_indices": 500})
 
     # frequencies of words in overall dict
