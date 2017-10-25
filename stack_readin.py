@@ -83,6 +83,8 @@ def DumpIntoSQLite(finp, outpath):
 
         print "Processed %i posts." % n
 
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ind ON posts (id)")
+
     conn.commit()
 
     conn.close()
