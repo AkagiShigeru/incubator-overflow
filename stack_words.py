@@ -15,7 +15,7 @@ from stack_util import *
 import sqlite3
 
 try:
-    from spacy.en import STOP_WORDS
+    from spacy.en import STOP_WORDS as STOPWORDS
 except:
     from spacy.en import STOPWORDS
 
@@ -52,7 +52,7 @@ def GetRelevantWords(post, get_ratio=False, debug=False):
     n_words = 0
 
     for word in nlp(p_clean):
-        if word.lemma_ not in STOP_WORDS and word.text not in STOP_WORDS:
+        if word.lemma_ not in STOPWORDS and word.text not in STOPWORDS:
             if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
                 if debug:
                     print "%s, %s, %s" % (word, word.lemma_, word.pos_)
