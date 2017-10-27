@@ -14,13 +14,22 @@ from IPython import embed
 from stack_util import *
 import sqlite3
 
-from spacy.en import STOP_WORDS
-import spacy
+try:
+    from spacy.en import STOP_WORDS
+except:
+    from spacy.en import STOPWORDS
 
-nlp = spacy.load("en_core_web_md")
+import unicodedata
+
+try:
+    import spacy
+    nlp = spacy.load("en_core_web_md")
+except:
+    from spacy.en import English
+    nlp = English()
 
 
-def GetRelevantWords(post, get_ratio=False):
+def GetRelevantWords(post, get_ratio=False, debug=False):
     """
     Yields relevant words in post after some cleaning.
     Uses spacy to select words.
@@ -32,6 +41,10 @@ def GetRelevantWords(post, get_ratio=False):
     p_clean = re.sub(r"<\/?\w*>", " ", p_clean)
     p_clean = p_clean.replace(":", "").lower()
 
+    if debug:
+        print "Cleaned:"
+        print p_clean
+
     words = defaultdict(int)
 
     n_noun = 0
@@ -39,9 +52,18 @@ def GetRelevantWords(post, get_ratio=False):
     n_words = 0
 
     for word in nlp(p_clean):
-        if word.lemma_ not in STOP_WORDS.union(u"-PRON-"):
+        if word.lemma_ not in STOP_WORDS and word.text not in STOP_WORDS:
             if word.pos_ in ["NOUN", "VERB", "ADV", "ADJ"]:
-                words[word.lemma_] += 1
+                if debug:
+                    print "%s, %s, %s" % (word, word.lemma_, word.pos_)
+
+                # some custom skipping
+                if "noreferrer" in word.lemma_ or "nofollow" in word.lemma_:
+                    continue
+                if word.lemma_ in ["<", ">"]:
+                    continue
+
+                words[unicodedata.normalize("NFKD", word.lemma_).encode("ascii", "ignore")] += 1
                 n_words += 1
                 if get_ratio:
                     if word.pos_ == "NOUN":
@@ -98,7 +120,7 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
                             limit=2000000, onlyquestions=False):
 
-    base = os.path.split(finp)[0]
+    base = os.path.split(instore_path)[0]
     print "Base path:", base
 
     word_dict = defaultdict(int)
@@ -110,7 +132,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
     # instore
     instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
-    chunks = instore.select("posts", chunksize=10000, iterator=True)
+    chunks = instore.select("posts", chunksize=1000, iterator=True)
 
     # db with all posts
     conn = sqlite3.connect(indb_path)
@@ -140,15 +162,15 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
             ws, nws = GetRelevantWords(post, get_ratio=False)
 
-            for w, mult in ws:
+            for w, mult in ws.items():
                 word_dict[w] += mult
 
-            if n % 20000 == 0:
+            if n % 10000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
                 new.set_index("words", inplace=True)
 
                 if df is not None:
-                    df = df.add(new, axis="n", fill_value=0)
+                    df = df.add(new, axis="index", fill_value=0)
                 else:
                     df = new
 
@@ -166,7 +188,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
         new.set_index("words", inplace=True)
 
         if df is not None:
-            df = df.add(new, axis="n", fill_value=0)
+            df = df.add(new, axis="index", fill_value=0)
         else:
             df = new
 
@@ -282,34 +304,6 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
     return True
 
 
-# unfinished, not sure if makes sense due to very slow sqlite access...
-def BuildDictionariesFromDB(meta_path, posts_path):
-
-    print "Building dictionary for %s" % meta_path
-
-    conn = sqlite3.connect(posts_path)
-
-    store = pd.HDFStore(meta_path, "r", complib="blosc", complevel=9)
-
-    chunks = store.select("posts", chunksize=10000, iterator=True)
-
-    for chunk in chunks:
-
-        for i in range(chunk.shape[0]):
-
-            pid = chunk.iloc[i].Id
-
-            print pid
-            curr = conn.execute("SELECT post FROM posts WHERE id=?", (pid,))
-            p = curr.fetchone()
-
-            print p
-
-            break
-
-        break
-
-
 if __name__ == "__main__":
 
     # hdf5 stores with post meta-data
@@ -331,7 +325,8 @@ if __name__ == "__main__":
         BuildWordLists(os.path.join(cpath, "posts_%s.hdf5" % year),
                        os.path.join(cpath, "dictionaries/dict_%s.hdf5" % year),
                        dbpath,
-                       os.path.join(cpath, "words/features_%s.hdf5" % year))
+                       os.path.join(cpath, "features/features_%s.hdf5" % year))
 
-    pmap(BuildDicts, [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017], numprocesses=4)
+    # pmap(BuildDicts, [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017], numprocesses=4)
+    map(BuildDicts, [2008])
     # pmap(BuildLists, [2010, 2012, 2014, 2016, 2017], numprocesses=5)
