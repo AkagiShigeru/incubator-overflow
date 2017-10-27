@@ -94,8 +94,95 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
     return True
 
 
+# builds dictionary of all occurring words
+def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
+                            limit=2000000, onlyquestions=False):
+
+    base = os.path.split(finp)[0]
+    print "Base path:", base
+
+    word_dict = defaultdict(int)
+
+    # saving to hdf
+    # outstore
+    outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
+    # outstore.put(pd.DataFrame(), format="table", data_columns=["words", "n"])
+
+    # instore
+    instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
+    chunks = instore.select("posts", chunksize=10000, iterator=True)
+
+    # db with all posts
+    conn = sqlite3.connect(indb_path)
+
+    df = None
+
+    n = 0
+    for chunk in chunks:
+
+        if n > limit:
+            break
+
+        for i in range(chunk.shape[0]):
+
+            pid = chunk.iloc[i].Id
+
+            if onlyquestions and (chunk.iloc[i].PostTypeId != 1):
+                continue
+
+            n += 1
+
+            # read-in limit reached
+            if n > limit:
+                break
+
+            post = conn.execute("SELECT post FROM posts WHERE id=?", (pid,)).fetchall()[0][0]
+
+            ws, nws = GetRelevantWords(post, get_ratio=False)
+
+            for w, mult in ws:
+                word_dict[w] += mult
+
+            if n % 20000 == 0:
+                new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
+                new.set_index("words", inplace=True)
+
+                if df is not None:
+                    df = df.add(new, axis="n", fill_value=0)
+                else:
+                    df = new
+
+                outstore.put("dict", df, format="table", data_columns=True)
+
+                word_dict.clear()
+                del new
+
+                print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, df.shape[0], df.n.sum())
+
+    # we need to push the remainder of posts left in the dictionary
+    if word_dict.values() != []:
+
+        new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
+        new.set_index("words", inplace=True)
+
+        if df is not None:
+            df = df.add(new, axis="n", fill_value=0)
+        else:
+            df = new
+
+        outstore.put("dict", df, format="table", data_columns=True)
+
+        word_dict.clear()
+        del new
+
+    outstore.close()
+    instore.close()
+
+    return True
+
+
 def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
-                   limit=1000000, order_cut=20000000,
+                   limit=3000000, order_cut=20000000,
                    onlyquestions=True):
 
     from scipy.stats import poisson, multinomial
@@ -228,17 +315,23 @@ if __name__ == "__main__":
     # hdf5 stores with post meta-data
     metas = sorted(glob("/home/alex/data/stackexchange/overflow/caches/posts_*.hdf5"))
     dbpath = "/home/alex/data/stackexchange/overflow/caches/posts.db"
+    cpath = "/home/alex/data/stackexchange/overflow/caches/"
 
     # original input file (zipped)
-    f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
+    # f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
 
     # BuildDictionariesFromDB(metas[0], dbpath)
     # BuildDictionariesFromFile(f, limit=1000000)
 
-    def BuildAllLists(year):
-        BuildWordLists("/home/alex/data/stackexchange/overflow/caches/posts_%s.hdf5" % year,
-                       "dictionaries/words_%s.hdf5" % year,
-                       dbpath,
-                       "words/features_%s.hdf5" % year)
+    def BuildDicts(year):
+        BuildDictionariesFromDB(os.path.join(cpath, "posts_%s.hdf5" % year), dbpath,
+                                os.path.join(cpath, "dictionaries/dict_%s.hdf5" % year))
 
-    pmap(BuildAllLists, [2010, 2012, 2014, 2016, 2017], numprocesses=5)
+    def BuildLists(year):
+        BuildWordLists(os.path.join(cpath, "posts_%s.hdf5" % year),
+                       os.path.join(cpath, "dictionaries/dict_%s.hdf5" % year),
+                       dbpath,
+                       os.path.join(cpath, "words/features_%s.hdf5" % year))
+
+    pmap(BuildDicts, [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017], numprocesses=4)
+    # pmap(BuildLists, [2010, 2012, 2014, 2016, 2017], numprocesses=5)
