@@ -181,8 +181,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
                 print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, df.shape[0], df.n.sum())
 
-                embed()
-
     # we need to push the remainder of posts left in the dictionary
     if word_dict.values() != []:
 
@@ -336,6 +334,8 @@ if __name__ == "__main__":
                        cfg.paths["db"],
                        os.path.join(cfg.paths["features"], "features_%s.hdf5" % year))
 
-    # pmap(BuildDicts, [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017], numprocesses=4)
     map(BuildDicts, [2008])
-    # pmap(BuildLists, [2010, 2012, 2014, 2016, 2017], numprocesses=5)
+
+    allyears = range(2008, 2018)
+    # pmap(BuildDicts, allyears, numprocesses=4)
+    # pmap(BuildLists, allyears, numprocesses=5)
