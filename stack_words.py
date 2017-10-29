@@ -163,7 +163,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
             for w, mult in ws.items():
                 word_dict[w] += mult
 
-            if n % 100000 == 0:
+            if n % 20000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
                 new.set_index("words", inplace=True)
 
@@ -334,8 +334,8 @@ if __name__ == "__main__":
                        cfg.paths["db"],
                        os.path.join(cfg.paths["features"], "features_%s.hdf5" % year))
 
-    map(BuildDicts, [2008])
+    # map(BuildDicts, [2008])
 
     allyears = range(2008, 2018)
-    # pmap(BuildDicts, allyears, numprocesses=4)
-    # pmap(BuildLists, allyears, numprocesses=5)
+    pmap(BuildDicts, allyears, numprocesses=2)
+    pmap(BuildLists, allyears, numprocesses=2)
