@@ -128,7 +128,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     # saving to hdf
     # outstore
     outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
-    outstore.put("dict", pd.DataFrame(), format="table", data_columns=True)
+    # outstore.put("dict", pd.DataFrame(), format="table", data_columns=True)
     outstore.close()
 
     # instore
@@ -166,13 +166,12 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
             if n % 20000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
-                new.set_index("words", inplace=True)
 
                 outstore.open()
                 if "dict" in outstore:
                     old = outstore.get("dict")
                     if old.shape[0] > 0:
-                        new = old.add(new, axis="index", fill_value=0)
+                        new["n"] = old.n.add(new.n, fill_value=0)
                     del old
 
                 outstore.put("dict", new, format="table", data_columns=True)
@@ -187,13 +186,12 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     if word_dict.values() != []:
 
         new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
-        new.set_index("words", inplace=True)
 
         outstore.open()
         if "dict" in outstore:
             old = outstore.get("dict")
             if old.shape[0] > 0:
-                new = old.add(new, axis="index", fill_value=0)
+                new["n"] = old.n.add(new.n, fill_value=0)
             del old
 
         outstore.put("dict", new, format="table", data_columns=True)
