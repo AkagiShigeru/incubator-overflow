@@ -173,6 +173,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
                     old = outstore.get("dict")
                     if old.shape[0] > 0:
                         new = old.add(new, axis="index", fill_value=0)
+                    del old
 
                 outstore.put("dict", new, format="table", data_columns=True)
 
@@ -180,7 +181,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
                 outstore.close()
                 word_dict.clear()
-                del old
                 del new
 
     # we need to push the remainder of posts left in the dictionary
@@ -194,6 +194,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
             old = outstore.get("dict")
             if old.shape[0] > 0:
                 new = old.add(new, axis="index", fill_value=0)
+            del old
 
         outstore.put("dict", new, format="table", data_columns=True)
 
@@ -202,7 +203,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
         outstore.close()
         word_dict.clear()
         del new
-        del old
 
     instore.close()
 
