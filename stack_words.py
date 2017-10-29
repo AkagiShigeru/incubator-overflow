@@ -129,6 +129,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     # outstore
     outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
     outstore.put("dict", pd.DataFrame(), format="table", data_columns=True)
+    outstore.close()
 
     # instore
     instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
@@ -167,14 +168,17 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
                 new.set_index("words", inplace=True)
 
-                old = outstore.get("dict")
-                if old.shape[0] > 0:
-                    new = old.add(new, axis="index", fill_value=0)
+                outstore.open()
+                if "dict" in outstore:
+                    old = outstore.get("dict")
+                    if old.shape[0] > 0:
+                        new = old.add(new, axis="index", fill_value=0)
 
                 outstore.put("dict", new, format="table", data_columns=True)
 
                 print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, new.shape[0], new.n.sum())
 
+                outstore.close()
                 word_dict.clear()
                 del old
                 del new
@@ -185,19 +189,21 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
         new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
         new.set_index("words", inplace=True)
 
-        old = outstore.get("dict")
-        if old.shape[0] > 0:
-            new = old.add(new, axis="index", fill_value=0)
+        outstore.open()
+        if "dict" in outstore:
+            old = outstore.get("dict")
+            if old.shape[0] > 0:
+                new = old.add(new, axis="index", fill_value=0)
 
         outstore.put("dict", new, format="table", data_columns=True)
 
         print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, new.shape[0], new.n.sum())
 
+        outstore.close()
         word_dict.clear()
         del new
         del old
 
-    outstore.close()
     instore.close()
 
     return True
