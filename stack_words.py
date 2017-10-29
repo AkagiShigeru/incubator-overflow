@@ -137,8 +137,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     # db with all posts
     conn = sqlite3.connect(indb_path)
 
-    df = None
-
     n = 0
     for chunk in chunks:
 
@@ -167,32 +165,19 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
             if n % 10000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
-                new.set_index("words", inplace=True)
 
-                if df is not None:
-                    df = df.add(new, axis="index", fill_value=0)
-                else:
-                    df = new
-
-                outstore.put("dict", df, format="table", data_columns=True)
-
-                word_dict.clear()
-                del new
+                outstore.put("dict", new, format="table", data_columns=True)
 
                 print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, df.shape[0], df.n.sum())
+
+                del new
 
     # we need to push the remainder of posts left in the dictionary
     if word_dict.values() != []:
 
         new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
-        new.set_index("words", inplace=True)
 
-        if df is not None:
-            df = df.add(new, axis="index", fill_value=0)
-        else:
-            df = new
-
-        outstore.put("dict", df, format="table", data_columns=True)
+        outstore.put("dict", new, format="table", data_columns=True)
 
         word_dict.clear()
         del new
