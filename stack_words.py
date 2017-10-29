@@ -118,7 +118,7 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
 # builds dictionary of all occurring words
 def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
-                            limit=2000000, onlyquestions=False):
+                            limit=1000000, onlyquestions=False):
 
     base = os.path.split(instore_path)[0]
     print "Base path:", base
@@ -181,6 +181,8 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
                 print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, df.shape[0], df.n.sum())
 
+                embed()
+
     # we need to push the remainder of posts left in the dictionary
     if word_dict.values() != []:
 
@@ -204,7 +206,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
 
 def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
-                   limit=3000000, order_cut=20000000,
+                   limit=1000000, order_cut=20000000,
                    onlyquestions=True):
 
     from scipy.stats import poisson, multinomial
@@ -306,26 +308,33 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
 
 if __name__ == "__main__":
 
-    # hdf5 stores with post meta-data
-    metas = sorted(glob("/home/alex/data/stackexchange/overflow/caches/posts_*.hdf5"))
-    dbpath = "/home/alex/data/stackexchange/overflow/caches/posts.db"
-    cpath = "/home/alex/data/stackexchange/overflow/caches/"
+    import argparse
 
-    # original input file (zipped)
-    # f = "/home/alex/data/stackexchange/overflow/stackoverflow.com-Posts.7z"
+    parser = argparse.ArgumentParser("Stackoverflow word analysis steered by config file.")
+    parser.add_argument("fn", nargs=1, metavar="<config file>",
+                        help="Configuration file containing desired paths and settings.")
+    args = parser.parse_args()
 
-    # BuildDictionariesFromDB(metas[0], dbpath)
-    # BuildDictionariesFromFile(f, limit=1000000)
+    cfgfn = args.fn[0]
+
+    # importing things from file
+    cfg = local_import(cfgfn)
+
+    # making sure that relevant directories exist
+    for k, p in cfg.paths.items():
+        if not os.path.exists(p):
+            print "Creating non-existing directory {0}.".format(p)
+            os.makedirs(p)
 
     def BuildDicts(year):
-        BuildDictionariesFromDB(os.path.join(cpath, "posts_%s.hdf5" % year), dbpath,
-                                os.path.join(cpath, "dictionaries/dict_%s.hdf5" % year))
+        BuildDictionariesFromDB(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year), cfg.paths["db"],
+                                os.path.join(cfg.paths["dictionaries"], "dict_%s.hdf5" % year))
 
     def BuildLists(year):
-        BuildWordLists(os.path.join(cpath, "posts_%s.hdf5" % year),
-                       os.path.join(cpath, "dictionaries/dict_%s.hdf5" % year),
-                       dbpath,
-                       os.path.join(cpath, "features/features_%s.hdf5" % year))
+        BuildWordLists(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year),
+                       os.path.join(cfg.paths["dictionaries"], "dict_%s.hdf5" % year),
+                       cfg.paths["db"],
+                       os.path.join(cfg.paths["features"], "features_%s.hdf5" % year))
 
     # pmap(BuildDicts, [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017], numprocesses=4)
     map(BuildDicts, [2008])

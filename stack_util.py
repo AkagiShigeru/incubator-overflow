@@ -28,6 +28,26 @@ g_markers = ["o", "s", "^", "H", "v", "<", ">", "D", "*", "p",
 hparser = HTMLParser()
 
 
+def local_import(x):
+    """Only works on Unix and x may not be the name of a builtin module"""
+    import os
+    import sys
+
+    path, fileName = os.path.split(x)
+    if not path:
+        path = "."
+    base, ext = os.path.splitext(fileName)
+    save = sys.dont_write_bytecode
+    save_path = list(sys.path)
+    sys.dont_write_bytecode = True
+    sys.path = [path]
+    rv = __import__(base)
+    sys.dont_write_bytecode = save
+    sys.path = save_path
+    sys.path.pop()
+    return rv
+
+
 def CleanString(s):
     return fromstring(s).text_content().encode("ascii", "ignore")
 
