@@ -171,7 +171,9 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
                 if "dict" in outstore:
                     old = outstore.get("dict")
                     if old.shape[0] > 0:
-                        new["n"] = old.n.add(new.n, fill_value=0)
+                        new = pd.merge(new, old, on="words", suffixes=("", "_r"), how="outer")
+                        new["n"] = new.n.add(new.n_r, fill_value=0)
+                        del new["n_r"]
                     del old
 
                 outstore.put("dict", new, format="table", data_columns=True)
@@ -191,7 +193,9 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
         if "dict" in outstore:
             old = outstore.get("dict")
             if old.shape[0] > 0:
-                new["n"] = old.n.add(new.n, fill_value=0)
+               new = pd.merge(new, old, on="words", suffixes=("", "_r"), how="outer")
+               new["n"] = new.n.add(new.n_r, fill_value=0)
+               del new["n_r"]
             del old
 
         outstore.put("dict", new, format="table", data_columns=True)
