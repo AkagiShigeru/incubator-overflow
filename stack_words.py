@@ -128,7 +128,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     # saving to hdf
     # outstore
     outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
-    # outstore.put(pd.DataFrame(), format="table", data_columns=["words", "n"])
+    outstore.put("dict", pd.DataFrame(), format="table", data_columns=True)
 
     # instore
     instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
@@ -163,24 +163,39 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
             for w, mult in ws.items():
                 word_dict[w] += mult
 
-            if n % 10000 == 0:
+            if n % 100000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
+                new.set_index("words", inplace=True)
+
+                old = outstore.get("dict")
+                if old.shape[0] > 0:
+                    new = old.add(new, axis="index", fill_value=0)
 
                 outstore.put("dict", new, format="table", data_columns=True)
 
-                print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, df.shape[0], df.n.sum())
+                print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, new.shape[0], new.n.sum())
 
+                word_dict.clear()
+                del old
                 del new
 
     # we need to push the remainder of posts left in the dictionary
     if word_dict.values() != []:
 
         new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
+        new.set_index("words", inplace=True)
+
+        old = outstore.get("dict")
+        if old.shape[0] > 0:
+            new = old.add(new, axis="index", fill_value=0)
 
         outstore.put("dict", new, format="table", data_columns=True)
 
+        print "#Entry: %i, #Unique Words: %i, #Words: %i" % (n, new.shape[0], new.n.sum())
+
         word_dict.clear()
         del new
+        del old
 
     outstore.close()
     instore.close()
