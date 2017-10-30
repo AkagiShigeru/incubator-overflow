@@ -344,4 +344,4 @@ if __name__ == "__main__":
 
     allyears = range(2008, 2018)
     pmap(BuildDicts, allyears, numprocesses=2)
-    pmap(BuildLists, allyears, numprocesses=2)
+    # pmap(BuildLists, allyears, numprocesses=2)

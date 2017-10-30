@@ -36,6 +36,97 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 
 
+def MergeDicts(dictlist):
+    """ Return a merged dictionary. """
+    pass
+
+
+def SelectionAndShuffling(cfg):
+
+    qs = cfg.data["meta"]
+    qs = qs[qs.nwords > 5]
+
+    # shuffling the df to avoid time ordering dependencies for now
+    print "Shuffling data..."
+    qs = shuffle(qs)
+    print "Length of shuffled data:", len(qs)
+    cfg.data["meta"] = qs
+
+
+def PrepareData(cfg):
+
+    store_meta = pd.HDFStore(cfg.meta_path, "r", complib="blosc", complevel=9)
+    store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
+    store_feat = pd.HDFStore(cfg.features_path, "r", complib="blosc", complevel=9)
+
+    smask = store_meta.select_as_coordinates("posts", "PostTypeId == 1")
+    qs = store_meta.select("posts", where=smask)
+    qs.set_index("Id", inplace=True, drop=False)
+    print "Shape of question df", qs.shape
+
+    qs["titlelen"] = qs["Title"].apply(len)
+    # transforming tags
+    qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
+    qs["hasAnswers"] = qs.AnswerCount > 1
+
+    # some datetime conv
+    datecols = ["CreationDate"]
+    for datecol in datecols:
+        qs[datecol] = pd.to_datetime(qs[datecol], origin="julian", unit="D")
+
+    now = pd.datetime.now()
+    qs["dt_created"] = now - qs.CreationDate
+
+    answers = store_meta.select("posts", where=store_meta.select_as_coordinates("posts", "PostTypeId == 2"))
+    answers.set_index("Id", inplace=True, drop=False)
+    print "Shape of answer df", answers.shape
+
+    words = store_dict.select("all")
+
+    words["freqs"] = words.n * 1. / words.n.sum()
+    words = words.sort_values(by="n", ascending=False)
+    words["order"] = np.arange(1, words.shape[0] + 1)
+
+    # drop known nuisance words that made it into the list
+    words = words.drop(544765)
+    words = words.drop(430514)
+
+    features = store_feat.select("words")
+    features.set_index("Id", inplace=True, drop=False)
+
+    # join in information about occurring words, probabilities etc
+    qs = qs.join(features, how="inner", rsuffix="_r")
+    print qs.head()
+
+    # join information about first answer into the frame
+    qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
+
+    # join in information about accepted answer
+    qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
+
+    qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
+    qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
+
+    # time between questions posing and first answer
+    dtanswer = qs.CreationDate_first - qs.CreationDate
+    dtanswer_acc = qs.CreationDate_acc - qs.CreationDate
+    qs["dt_answer"] = dtanswer
+    qs["dt_accanswer"] = dtanswer_acc
+
+    cfg.data["meta"] = qs
+    cfg.data["dict"] = words
+    cfg.data["features"] = features
+
+
+def NormalizeColumns(df, cols):
+    pass
+
+
+def TimeAnalysis(cfg):
+    """ Analyse time dependence of answers in more detail."""
+    pass
+
+
 def SimpleAnalysis(cfg):
 
     # selecting data from 2017
@@ -330,4 +421,6 @@ if __name__ == "__main__":
             print "Creating non-existing directory {0}.".format(p)
             os.makedirs(p)
 
-    SimpleAnalysis(cfg)
+    data = PrepareData(cfg)
+    SelectionAndShuffling(cfg)
+    # SimpleAnalysis(cfg)
