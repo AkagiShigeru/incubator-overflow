@@ -59,11 +59,13 @@ def PrepareData(cfg):
     store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
     store_feat = pd.HDFStore(cfg.features_path, "r", complib="blosc", complevel=9)
 
+    # select only questions here
     smask = store_meta.select_as_coordinates("posts", "PostTypeId == 1")
     qs = store_meta.select("posts", where=smask)
     qs.set_index("Id", inplace=True, drop=False)
     print "Shape of question df", qs.shape
 
+    # additional trivial columns / features, see also feature dataframe below
     qs["titlelen"] = qs["Title"].apply(len)
     # transforming tags
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
@@ -77,12 +79,13 @@ def PrepareData(cfg):
     now = pd.datetime.now()
     qs["dt_created"] = now - qs.CreationDate
 
+    # getting the answers
     answers = store_meta.select("posts", where=store_meta.select_as_coordinates("posts", "PostTypeId == 2"))
     answers.set_index("Id", inplace=True, drop=False)
     print "Shape of answer df", answers.shape
 
+    # word dictionary
     words = store_dict.select("all")
-
     words["freqs"] = words.n * 1. / words.n.sum()
     words = words.sort_values(by="n", ascending=False)
     words["order"] = np.arange(1, words.shape[0] + 1)
@@ -96,7 +99,7 @@ def PrepareData(cfg):
 
     # join in information about occurring words, probabilities etc
     qs = qs.join(features, how="inner", rsuffix="_r")
-    print qs.head()
+    # print qs.head()
 
     # join information about first answer into the frame
     qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
