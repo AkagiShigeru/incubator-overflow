@@ -102,6 +102,7 @@ def PrepareData(cfg):
     # print qs.head()
 
     # join information about first answer into the frame
+    answers = answers.sort_values(by="CreationDate", ascending=True)
     qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
 
     # join in information about accepted answer
