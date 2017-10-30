@@ -142,9 +142,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     n = 0
     for chunk in chunks:
 
-        if n > limit:
-            break
-
         for i in range(chunk.shape[0]):
 
             pid = chunk.iloc[i].Id
@@ -153,10 +150,6 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
                 continue
 
             n += 1
-
-            # read-in limit reached
-            if n > limit:
-                break
 
             post = conn.execute("SELECT post FROM posts WHERE id=?", (pid,)).fetchall()[0][0]
 
