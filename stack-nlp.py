@@ -102,6 +102,7 @@ def SimpleAnalysis(cfg):
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
     qs["hasAnswers"] = qs.AnswerCount > 1
 
+    now = pd.datetime.now()
     qs["dt_created"] = now - qs.CreationDate
 
     if False:
@@ -131,11 +132,11 @@ def SimpleAnalysis(cfg):
     # join in information about accepted answer
     qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
 
-    qs["CreationDate_a"] = pd.to_datetime(qs.CreationDate_a, origin="julian", unit="D")
+    qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
 
     # time between questions posing and first answer
-    dtanswer = qs.CreationDate_a - qs.CreationDate
+    dtanswer = qs.CreationDate_first - qs.CreationDate
     dtanswer_acc = qs.CreationDate_acc - qs.CreationDate
 
     if False:
@@ -189,7 +190,7 @@ def SimpleAnalysis(cfg):
                          ("tfid", TfidfTransformer()),
                          # ("poly", PolynomialFeatures(degree=2)),  # not working???
                          # ("ridge", Ridge(alpha=10.0))
-                         # ("logi", LogisticRegression())
+                         ("logi", LogisticRegression())
                          # ("kridge", KernelRidge(alpha=1.))  # runs out of memory quickly while fitting...
                          # ("svr", SVR())
                          ])
@@ -201,7 +202,7 @@ def SimpleAnalysis(cfg):
     print np.sum(pred == labels.iloc[traincut:])
     print pipe_tags.score(qs.iloc[traincut:], labels.iloc[traincut:])
 
-    pipe_tags.named_steps["ridge"].get_params()
+    # pipe_tags.named_steps["ridge"].get_params()
 
     qs.columns
     qs.hot_indices.head()
