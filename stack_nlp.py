@@ -119,6 +119,7 @@ def PrepareData(cfg):
     cfg.data["meta"] = qs
     cfg.data["dict"] = words
     cfg.data["features"] = features
+    cfg.data["answers"] = answers
 
 
 def NormalizeColumns(df, cols):
