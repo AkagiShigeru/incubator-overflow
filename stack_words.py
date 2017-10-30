@@ -118,7 +118,7 @@ def BuildDictionariesFromFile(finp, outp="./words.hdf5", limit=100000):
 
 # builds dictionary of all occurring words
 def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
-                            limit=1000000, onlyquestions=False):
+                            start=0, stop=100000, onlyquestions=False):
 
     base = os.path.split(instore_path)[0]
     print "Base path:", base
@@ -133,7 +133,8 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
 
     # instore
     instore = pd.HDFStore(instore_path, "r", complib="blosc", complevel=9)
-    chunks = instore.select("posts", chunksize=1000, iterator=True)
+    chunks = instore.select("posts", chunksize=10000, start=start, stop=stop,
+                            iterator=True)
 
     # db with all posts
     conn = sqlite3.connect(indb_path)
@@ -164,7 +165,7 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
             for w, mult in ws.items():
                 word_dict[w] += mult
 
-            if n % 20000 == 0:
+            if n % 10000 == 0:
                 new = pd.DataFrame({"words": word_dict.keys(), "n": word_dict.values()})
 
                 outstore.open()
@@ -333,8 +334,12 @@ if __name__ == "__main__":
             os.makedirs(p)
 
     def BuildDicts(year):
-        BuildDictionariesFromDB(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year), cfg.paths["db"],
-                                os.path.join(cfg.paths["dictionaries"], "dict_%s.hdf5" % year))
+        chunks = np.arange(0, 1100000, 200000)
+        for ic, cstart in enumerate(chunks[:-1]):
+            cend = chunks[ic + 1]
+            BuildDictionariesFromDB(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year), cfg.paths["db"],
+                                    os.path.join(cfg.paths["dictionaries"], "dict_%s_%s_%s.hdf5" % (year, cstart + 1, cend)),
+                                    start=cstart + 1, stop=cend)
 
     def BuildLists(year):
         BuildWordLists(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year),
