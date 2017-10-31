@@ -313,7 +313,7 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
             words["ordersum"].append(wsdf.order.sum())
             words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
 
-            if n % 500 == 0:
+            if n % 1000 == 0:
 
                 df = pd.DataFrame(words)
                 outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
@@ -369,7 +369,7 @@ if __name__ == "__main__":
 
     def BuildLists(year):
         BuildWordLists(os.path.join(cfg.paths["caches"], "posts_%s.hdf5" % year),
-                       os.path.join(cfg.paths["dictionaries"], "dict_%s.hdf5" % year),
+                       os.path.join(cfg.paths["dictionaries"], "merged.hdf5"),
                        cfg.paths["db"],
                        os.path.join(cfg.paths["features"], "features_%s.hdf5" % year))
 
@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     allyears = range(2008, 2018)
     # pmap(BuildDicts, allyears, numprocesses=2)
-    # pmap(BuildLists, allyears, numprocesses=2)
+    pmap(BuildLists, allyears, numprocesses=1)
 
     # merge individual (yearly) dicts together
     # MergeDictionaries(glob("/home/alex/data/stack_cache/dictionaries_new/*.hdf5"),
