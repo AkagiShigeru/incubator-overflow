@@ -16,3 +16,4 @@ dictionaries/
 .ipynb_checkpoints/
 reveal.js/
 other/
+*.dill

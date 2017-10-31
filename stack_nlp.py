@@ -84,12 +84,14 @@ def PrepareData(cfg):
     print "Shape of answer df", answers.shape
 
     # word dictionary
+    print "Loading word dictionary..."
     words = store_dict.select("all")
     words["freqs"] = words.n * 1. / words.n.sum()
     words = words.sort_values(by="n", ascending=False)
     words["order"] = np.arange(1, words.shape[0] + 1)
 
     # drop known nuisance words that made it into the list
+    print "Warning! Dropping some words from word list, please verify!"
     words = words.drop(544765)
     words = words.drop(430514)
 
@@ -115,6 +117,16 @@ def PrepareData(cfg):
     dtanswer_acc = qs.CreationDate_acc - qs.CreationDate
     qs["dt_answer"] = dtanswer
     qs["dt_accanswer"] = dtanswer_acc
+
+    qs["dt_answer_hour"] = qs.dt_answer.dt.total_seconds() * 1. / 3600
+    qs["dt_accanswer_hour"] = qs.dt_accanswer.dt.total_seconds() * 1. / 3600
+
+    # normalizing some columns
+    print "Calculating normalized columns. They are available under usual column name + _norm."
+    cols = ["BodyNCodes", "BodyNQMarks", "BodySize", "titlelen", "nwords", "ordersum", "ratio"]
+    for col in cols:
+        quants = qs[col].quantile([0.01, 0.99]).values
+        qs["%s_norm" % col] = (qs[col] - quants[0]) / (quants[1] - quants[0])
 
     cfg.data["meta"] = qs
     cfg.data["dict"] = words
