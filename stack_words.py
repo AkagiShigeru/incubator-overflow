@@ -205,6 +205,39 @@ def BuildDictionariesFromDB(instore_path, indb_path, outstore_path,
     return True
 
 
+def MergeDictionaries(pathlist, outpath):
+
+    outstore = pd.HDFStore(outpath, "w", complib="blosc", complevel=9)
+
+    outdf = None
+
+    for i, pathi in enumerate(pathlist):
+
+        print "Processing dataframe %i of %i (%s)." % (i, len(pathlist), pathi)
+
+        instorei = pd.HDFStore(pathi, "r", complib="blosc", complevel=9)
+
+        dfi = instorei.get("dict")
+        dfi.set_index("words", inplace=True)
+        dfi = dfi[~dfi.index.duplicated()]
+
+        if outdf is None:
+            outdf = dfi
+        else:
+            dfi.rename(columns={"n": "n_new"}, inplace=True)
+            # outdf["n"] = outdf.n.add(dfi.n, axis="index", fill_value=0)
+            outdf = outdf.combine_first(dfi)
+            outdf[np.isnan(outdf)] = 0
+            outdf["n"] = outdf.n + outdf.n_new
+            del outdf["n_new"]
+
+        instorei.close()
+
+    print "Writing merged output df to %s." % outpath
+    outstore.put("dict", outdf.reset_index())
+    outstore.close()
+
+
 def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
                    limit=1000000, order_cut=20000000,
                    onlyquestions=True):
@@ -343,5 +376,9 @@ if __name__ == "__main__":
     # map(BuildDicts, [2008])
 
     allyears = range(2008, 2018)
-    pmap(BuildDicts, allyears, numprocesses=2)
+    # pmap(BuildDicts, allyears, numprocesses=2)
     # pmap(BuildLists, allyears, numprocesses=2)
+
+    # merge individual (yearly) dicts together
+    # MergeDictionaries(glob("/home/alex/data/stack_cache/dictionaries_new/*.hdf5"),
+    #                   os.path.join(cfg.paths["dictionaries"], "merged.hdf5"))
