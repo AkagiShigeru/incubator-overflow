@@ -252,7 +252,7 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
                  data_columns=["Id", "nwords", "ratio"],
                  min_itemsize={"hot_indices": 500})
 
-    wdict = pd.HDFStore(wdict_path, "r", complib="blosc", complevel=9).get("all")
+    wdict = pd.HDFStore(wdict_path, "r", complib="blosc", complevel=9).get("dict")
 
     # frequencies of words in overall dict
     wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
