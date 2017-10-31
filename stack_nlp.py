@@ -16,7 +16,6 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import sqlite3
 
 from pyik.mplext import ViolinPlot
-from util_general import QuickSlicePlot
 
 from stack_util import *
 from stack_transformers import *
