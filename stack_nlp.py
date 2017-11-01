@@ -69,6 +69,8 @@ def PrepareData(cfg):
     # transforming tags
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
     qs["hasAnswers"] = qs.AnswerCount > 1
+    qs["dayhour"] = qs.CreationDate.dt.hour
+    qs["weekday"] = qs.CreationDate.dt.dayofweek
 
     # some datetime conv
     datecols = ["CreationDate"]
