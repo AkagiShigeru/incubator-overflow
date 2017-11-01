@@ -69,8 +69,6 @@ def PrepareData(cfg):
     # transforming tags
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
     qs["hasAnswers"] = qs.AnswerCount > 1
-    qs["dayhour"] = qs.CreationDate.dt.hour
-    qs["weekday"] = qs.CreationDate.dt.dayofweek
 
     # some datetime conv
     datecols = ["CreationDate"]
@@ -113,6 +111,9 @@ def PrepareData(cfg):
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
+
+    qs["dayhour"] = qs.CreationDate.dt.hour
+    qs["weekday"] = qs.CreationDate.dt.dayofweek
 
     # time between questions posing and first answer
     dtanswer = qs.CreationDate_first - qs.CreationDate
