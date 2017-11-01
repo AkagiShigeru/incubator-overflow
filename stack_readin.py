@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
     # years = np.arange(2008, 2018)
     years = [2009, 2011]
-    pmap(CreateYearly, years, numprocesses=8)
+    # pmap(CreateYearly, years, numprocesses=8)
 
     # DumpIntoSQLite(f, "/home/alex/data/stackexchange/overflow/caches/posts.db")
 
