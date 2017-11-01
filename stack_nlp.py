@@ -33,6 +33,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import FeatureUnion
 
 
 def MergeDicts(dictlist):
