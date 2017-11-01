@@ -8,6 +8,8 @@ import re
 import pandas as pd
 import numpy as np
 
+from scipy.stats.mstats import mquantiles
+
 from pyik.performance import pmap, cached
 
 from lxml.html import fromstring

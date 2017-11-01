@@ -61,3 +61,26 @@ class EstimatorTransformer(base.BaseEstimator, base.TransformerMixin):
         # Use predict on the stored estimator as a "transformation".
         # Be sure to return a 2-D array.
         return [[x] for x in self.estimator.predict(X)]
+
+
+# custom regressor (*heavy sweat in face while watching multiple regressions*)
+class MultiModelRegressor(base.BaseEstimator, base.RegressorMixin):
+
+    def __init__(self, base_est, resi_est):
+        self.base_est = base_est
+        self.resi_est = resi_est
+        self.base_pred = None
+        self.best_pred = None
+
+    def fit(self, X, y):
+        self.base_est.fit(X, y)
+        print "Performing base regression..."
+        self.base_pred = self.base_est.predict(X)
+        resis = y - self.base_pred
+        print "Performing residual regression..."
+        self.resi_est.fit(X, resis)
+        # self.best_pred = self.resi_est(X)
+        return self
+
+    def predict(self, X):
+        return self.base_est.predict(X) + self.resi_est.predict(X)
