@@ -105,12 +105,10 @@ def PrepareData(cfg):
 
     # join information about first answer into the frame
     answers = answers.sort_values(by="CreationDate", ascending=True)
-    qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id",
-             right_on="ParentId", suffixes=("", "_first"), copy=False)
+    qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
 
     # join in information about accepted answer
-    qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId",
-             right_on="Id", suffixes=("", "_acc"), copy=False)
+    qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
@@ -240,12 +238,10 @@ def SimpleAnalysis(cfg):
     print len(qs)
 
     # join information about first answer into the frame
-    qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id",
-             right_on="ParentId", suffixes=("", "_first"), copy=False)
+    qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
 
     # join in information about accepted answer
-    qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId",
-             right_on="Id", suffixes=("", "_acc"), copy=False)
+    qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
