@@ -248,9 +248,9 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
 
     # outstore
     outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
-    outstore.put("words", pd.DataFrame(), format="table",
-                 data_columns=["Id", "nwords", "ratio"],
-                 min_itemsize={"hot_indices": 1000})
+    # outstore.put("words", pd.DataFrame(), format="table",
+    #              data_columns=["Id", "nwords", "ratio"],
+    #              min_itemsize={"hot_indices": 800})
 
     wdict = pd.HDFStore(wdict_path, "r", complib="blosc", complevel=9).get("dict")
 
@@ -260,8 +260,8 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
     wdict = wdict.sort_values(by="n", ascending=False)
     wdict["order"] = np.arange(1, wdict.shape[0] + 1)
 
-    # take only words that describe 90 % of sum of all words
-    cutoff = np.where((wdict.n.cumsum() * 1. / wdict.n.sum()) > 0.90)[0][0]
+    # take only words that describe 95 % of sum of all words
+    cutoff = np.where((wdict.n.cumsum() * 1. / wdict.n.sum()) > 0.95)[0][0]
     wdict = wdict.iloc[:cutoff]
     wdict.set_index("words", inplace=True, drop=False)
 
@@ -305,20 +305,25 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
             hotindices = wsdf[wsdf.order < order_cut].order.values
 
             words["Id"].append(pid)
-            words["ratio"].append(ratio)
-            words["nwords"].append(nws)
+            words["ratio"].append(float(ratio))
+            words["nwords"].append(int(nws))
             # words["prob_multi"].append(multiprob)
-            words["prob_bern"].append(prob_bern)
-            words["prob_poiss"].append(prob_poisson)
-            words["ordersum"].append(wsdf.order.sum())
+            words["prob_bern"].append(float(prob_bern))
+            words["prob_poiss"].append(float(prob_poisson))
+            words["ordersum"].append(float(wsdf.order.sum()))
+            words["ordermean"].append(float(wsdf.order.mean()))
+            words["orderstd"].append(float(wsdf.order.std()))
             # words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
-            words["hot_indices"].append(";".join(map(str, hotindices))[:1000])
+            words["hot_indices"].append(";".join(map(str, hotindices))[:800])
 
             if n % 1000 == 0:
 
                 df = pd.DataFrame(words)
+                if "words" in outstore:
+                    print outstore.select("words").dtypes
+                    print df.dtypes
                 outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                                min_itemsize={"hot_indices": 1000})
+                                min_itemsize={"hot_indices": 800})
                 words.clear()
                 del df
 
@@ -329,7 +334,7 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
 
         df = pd.DataFrame(words)
         outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                        min_itemsize={"hot_indices": 1000})
+                        min_itemsize={"hot_indices": 800})
         words.clear()
         del df
 
