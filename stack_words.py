@@ -311,7 +311,8 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
             words["prob_bern"].append(prob_bern)
             words["prob_poiss"].append(prob_poisson)
             words["ordersum"].append(wsdf.order.sum())
-            words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
+            # words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
+            words["hot_indices"].append(";".join(map(str, hotindices)[:400]))
 
             if n % 1000 == 0:
 
@@ -377,7 +378,7 @@ if __name__ == "__main__":
 
     allyears = range(2008, 2018)
     # pmap(BuildDicts, allyears, numprocesses=2)
-    pmap(BuildLists, allyears, numprocesses=1)
+    pmap(BuildLists, [2016, 2017], numprocesses=1)
 
     # merge individual (yearly) dicts together
     # MergeDictionaries(glob("/home/alex/data/stack_cache/dictionaries_new/*.hdf5"),
