@@ -250,7 +250,7 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
     outstore = pd.HDFStore(outstore_path, "w", complib="blosc", complevel=9)
     outstore.put("words", pd.DataFrame(), format="table",
                  data_columns=["Id", "nwords", "ratio"],
-                 min_itemsize={"hot_indices": 500})
+                 min_itemsize={"hot_indices": 1000})
 
     wdict = pd.HDFStore(wdict_path, "r", complib="blosc", complevel=9).get("dict")
 
@@ -312,13 +312,13 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
             words["prob_poiss"].append(prob_poisson)
             words["ordersum"].append(wsdf.order.sum())
             # words["hot_indices"].append(";".join(map(str, sorted(hotindices)))[:500])
-            words["hot_indices"].append(";".join(map(str, hotindices)[:400]))
+            words["hot_indices"].append(";".join(map(str, hotindices))[:1000])
 
             if n % 1000 == 0:
 
                 df = pd.DataFrame(words)
                 outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                                min_itemsize={"hot_indices": 500})
+                                min_itemsize={"hot_indices": 1000})
                 words.clear()
                 del df
 
@@ -329,7 +329,7 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
 
         df = pd.DataFrame(words)
         outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
-                        min_itemsize={"hot_indices": 500})
+                        min_itemsize={"hot_indices": 1000})
         words.clear()
         del df
 
@@ -378,7 +378,7 @@ if __name__ == "__main__":
 
     allyears = range(2008, 2018)
     # pmap(BuildDicts, allyears, numprocesses=2)
-    pmap(BuildLists, [2016, 2017], numprocesses=1)
+    pmap(BuildLists, [2016, 2017], numprocesses=2)
 
     # merge individual (yearly) dicts together
     # MergeDictionaries(glob("/home/alex/data/stack_cache/dictionaries_new/*.hdf5"),

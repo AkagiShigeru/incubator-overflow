@@ -14,7 +14,7 @@ paths = {}
 paths["caches"] = "/home/alex/data/stackexchange/overflow/caches/"
 paths["db"] = os.path.join(paths["caches"], "posts.db")
 paths["metas"] = paths["caches"]
-paths["features"] = os.path.join(paths["caches"], "features/")
+paths["features"] = os.path.join(paths["caches"], "features_new/")
 paths["dictionaries"] = os.path.join(paths["caches"], "dictionaries/")
 
 
