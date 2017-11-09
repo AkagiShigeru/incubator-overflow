@@ -114,6 +114,11 @@ def PrepareData(cfg):
     print "This removes %i questions." % (np.sum(~mask))
     qs = qs[mask]
 
+    mask = qs.ordersum.isnull()
+    print "Removing bad values with missing feature information."
+    print "This affects %i questions." % (np.sum(mask))
+    qs = qs[~mask]
+
     # merge information about first answer into the frame
     answers = answers.sort_values(by="CreationDate", ascending=True)
     qs = qs.merge(answers[["ParentId", "CreationDate"]].drop_duplicates("ParentId"),

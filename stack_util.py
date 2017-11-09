@@ -26,6 +26,12 @@ g_ls = ["-", "--", "-.", ":", "-"] * 10
 g_markers = ["o", "s", "^", "H", "v", "<", ">", "D", "*", "p",
              "1", "2", "3", "4", "_", "d", "h", "x", "|", "."] * 10
 
+cols_desc = {"AnswerCount": "Number of replies", "BodyNCodes": "Number of code tags",
+             "BodyNQMarks": "Number of question marks", "BodySize": "Length of post text",
+             "titlelen": "Length of title", "nwords": "Number of meaningful words",
+             "ordersum": "Word prevalence (sum)", "ordermean": "Word prevalence (average)",
+             "orderstd": "Word prevalence (std)", "ratio": "Ratio of number of verbs to nouns",
+             "Score": "Question score", "prob_bern": "Joined bernoulli probability of words"}
 
 hparser = HTMLParser()
 
