@@ -35,6 +35,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion
 
+from IPython import embed
+
 
 def MergeDicts(dictlist):
     """ Return a merged dictionary. """
@@ -114,10 +116,12 @@ def PrepareData(cfg):
 
     # merge information about first answer into the frame
     answers = answers.sort_values(by="CreationDate", ascending=True)
-    qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
+    qs = qs.merge(answers[["ParentId", "CreationDate"]].drop_duplicates("ParentId"),
+                  how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
 
     # merge in information about accepted answer
-    qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
+    qs = qs.merge(answers[["Id", "CreationDate"]],
+                  how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
@@ -453,5 +457,5 @@ if __name__ == "__main__":
             os.makedirs(p)
 
     data = PrepareData(cfg)
-    SelectionAndShuffling(cfg)
+    # SelectionAndShuffling(cfg)
     # SimpleAnalysis(cfg)
