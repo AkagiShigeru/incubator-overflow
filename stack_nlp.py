@@ -114,7 +114,7 @@ def PrepareData(cfg):
     print "This removes %i questions." % (np.sum(~mask))
     qs = qs[mask]
 
-    mask = qs.ordersum.isnull()
+    mask = (qs.ordersum.isnull()) | (qs.orderstd.isnull())
     print "Removing bad values with missing feature information."
     print "This affects %i questions." % (np.sum(mask))
     qs = qs[~mask]
@@ -145,7 +145,8 @@ def PrepareData(cfg):
 
     # normalizing some columns
     print "Calculating normalized columns. They are available under usual column name + _norm."
-    cols = ["BodyNCodes", "BodyNQMarks", "BodySize", "titlelen", "nwords", "ordersum", "ratio"]
+    cols = ["BodyNCodes", "BodyNQMarks", "BodySize", "titlelen", "nwords", "ordersum",
+            "ordermean", "orderstd", "ratio"]
     for col in cols:
         quants = qs[col].quantile([0.01, 0.99]).values
         qs["%s_norm" % col] = (qs[col] - quants[0]) / (quants[1] - quants[0])
