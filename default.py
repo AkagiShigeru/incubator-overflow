@@ -22,7 +22,8 @@ data = {}
 
 posts_path = os.path.join(paths["db"])
 meta_path = os.path.join(paths["metas"], "posts_2017.hdf5")
-dict_path = os.path.join(paths["dictionaries"], "words_2017.hdf5")
+# dict_path = os.path.join(paths["dictionaries"], "words_2017.hdf5")  # for old features
+dict_path = os.path.join(paths["dictionaries"], "merged.hdf5")
 features_path = os.path.join(paths["features"], "features_2017.hdf5")
 
 dbonn = sqlite3.connect(posts_path)

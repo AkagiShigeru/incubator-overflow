@@ -86,15 +86,19 @@ def PrepareData(cfg):
 
     # word dictionary
     print "Loading word dictionary..."
-    words = store_dict.select("all")
+    words = store_dict.select("dict")
     words["freqs"] = words.n * 1. / words.n.sum()
     words = words.sort_values(by="n", ascending=False)
     words["order"] = np.arange(1, words.shape[0] + 1)
 
+    print "Shape of dictionary", words.shape
+
     # drop known nuisance words that made it into the list
     print "Warning! Dropping some words from word list, please verify!"
-    words = words.drop(544765)
-    words = words.drop(430514)
+    drops = [1211]
+    for dind in drops:
+        print "Dropping %i" % dind
+        words = words.drop(dind)
 
     features = store_feat.select("words")
     features.set_index("Id", inplace=True, drop=False)
@@ -132,6 +136,7 @@ def PrepareData(cfg):
         quants = qs[col].quantile([0.01, 0.99]).values
         qs["%s_norm" % col] = (qs[col] - quants[0]) / (quants[1] - quants[0])
 
+    # saving for convenient use in notebooks
     cfg.data["meta"] = qs
     cfg.data["dict"] = words
     cfg.data["features"] = features
