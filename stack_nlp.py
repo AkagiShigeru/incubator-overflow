@@ -71,9 +71,6 @@ def PrepareData(cfg):
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
     qs["hasAnswers"] = qs.AnswerCount > 1
 
-    print "Selecting only posts with at least 3 meaningful words."
-    qs = qs[qs.nwords > 3]
-
     # some datetime conv
     datecols = ["CreationDate"]
     for datecol in datecols:
@@ -108,13 +105,18 @@ def PrepareData(cfg):
 
     # join in information about occurring words, probabilities etc
     qs = qs.join(features, how="inner", rsuffix="_r")
-    # print qs.head()
+    print "Shape of merged df", qs.shape
 
-    # join information about first answer into the frame
+    mask = qs.nwords > 3
+    print "Selecting only questions with at least 3 meaningful words."
+    print "This removes %i questions." % (np.sum(~mask))
+    qs = qs[mask]
+
+    # merge information about first answer into the frame
     answers = answers.sort_values(by="CreationDate", ascending=True)
     qs = qs.merge(answers[["ParentId", "CreationDate"]], how="left", left_on="Id", right_on="ParentId", suffixes=("", "_first"))
 
-    # join in information about accepted answer
+    # merge in information about accepted answer
     qs = qs.merge(answers[["Id", "CreationDate"]], how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
@@ -151,7 +153,8 @@ def NormalizeColumns(df, cols):
 
 
 def TimeAnalysis(cfg):
-    """ Analyse time dependence of answers in more detail."""
+    """ Analyse time dependence of answers in more detail.
+        Can be found in accompanying notebooks. """
     pass
 
 
