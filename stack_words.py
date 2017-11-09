@@ -319,9 +319,9 @@ def BuildWordLists(instore_path, wdict_path, indb_path, outstore_path,
             if n % 1000 == 0:
 
                 df = pd.DataFrame(words)
-                if "words" in outstore:
-                    print outstore.select("words").dtypes
-                    print df.dtypes
+                # if "words" in outstore:
+                #     print outstore.select("words").dtypes
+                #     print df.dtypes
                 outstore.append("words", df, format="table", data_columns=["Id", "nwords", "ratio"],
                                 min_itemsize={"hot_indices": 800})
                 words.clear()
