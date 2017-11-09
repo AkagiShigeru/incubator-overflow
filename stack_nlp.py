@@ -22,14 +22,14 @@ from stack_transformers import *
 
 from sklearn.utils import shuffle
 
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridges, SGDRegressor
 from sklearn.pipeline import Pipeline
 from sklearn import model_selection
 from scipy import stats
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.svm import SVR
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
@@ -70,6 +70,9 @@ def PrepareData(cfg):
     # transforming tags
     qs["Tags"] = qs.Tags.apply(lambda x: x.split(";")[1:])
     qs["hasAnswers"] = qs.AnswerCount > 1
+
+    print "Selecting only posts with at least 3 meaningful words."
+    qs = qs[qs.nwords > 3]
 
     # some datetime conv
     datecols = ["CreationDate"]
