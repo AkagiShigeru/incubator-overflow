@@ -22,7 +22,7 @@ from stack_transformers import *
 
 from sklearn.utils import shuffle
 
-from sklearn.linear_model import Ridges, SGDRegressor
+from sklearn.linear_model import Ridge, SGDRegressor
 from sklearn.pipeline import Pipeline
 from sklearn import model_selection
 from scipy import stats
