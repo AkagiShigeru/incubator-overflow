@@ -28,10 +28,10 @@ from sklearn import model_selection
 from scipy import stats
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.svm import SVR
+from sklearn.svm import SVR, SVC
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from sklearn.neural_network import MLPRegressor
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.neural_network import MLPRegressor, MLPClassifier
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import OneHotEncoder
