@@ -34,6 +34,7 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion
+from sklearn.preprocessing import OneHotEncoder
 
 from IPython import embed
 
@@ -109,7 +110,7 @@ def PrepareData(cfg):
     qs = qs.join(features, how="inner", rsuffix="_r")
     print "Shape of merged df", qs.shape
 
-    mask = qs.nwords > 3
+    mask = qs.nwords > 5
     print "Selecting only questions with at least 3 meaningful words."
     print "This removes %i questions." % (np.sum(~mask))
     qs = qs[mask]
