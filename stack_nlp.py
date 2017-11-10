@@ -111,7 +111,7 @@ def PrepareData(cfg):
     print "Shape of merged df", qs.shape
 
     mask = qs.nwords > 5
-    print "Selecting only questions with at least 3 meaningful words."
+    print "Selecting only questions with at least 5 meaningful words."
     print "This removes %i questions." % (np.sum(~mask))
     qs = qs[mask]
 
