@@ -20,16 +20,21 @@ paths["dictionaries"] = os.path.join(paths["caches"], "dictionaries/")
 
 data = {}
 
-posts_path = os.path.join(paths["db"])
+posts_path = paths["db"]
 meta_path = os.path.join(paths["metas"], "posts_2017.hdf5")
 # dict_path = os.path.join(paths["dictionaries"], "words_2017.hdf5")  # for old features
 dict_path = os.path.join(paths["dictionaries"], "merged.hdf5")
 features_path = os.path.join(paths["features"], "features_2017.hdf5")
 
-dbonn = sqlite3.connect(posts_path)
+# options (what data to read etc)
+options = {}
+options["read"] = ["questions", "answers", "dictionary", "features"]
 
 
-# for future redesign (possibly)
+
+
+
+# for future redesign (possibly to specify data better and in more modular way)
 # data = []
 
 # meta = {}

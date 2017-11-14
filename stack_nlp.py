@@ -8,6 +8,8 @@ import os
 import pandas as pd
 import numpy as np
 
+import gc
+
 # import seaborn as sns
 from pyik.mplext import ViolinPlot
 from matplotlib import pyplot as plt
@@ -56,13 +58,14 @@ def SelectionAndShuffling(cfg):
     cfg.data["meta"] = qs
 
 
-def PrepareData(cfg):
+def PrepareData(cfg, verbose=False):
 
+    conn = sqlite3.connect(cfg.posts_path)
     store_meta = pd.HDFStore(cfg.meta_path, "r", complib="blosc", complevel=9)
     store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
     store_feat = pd.HDFStore(cfg.features_path, "r", complib="blosc", complevel=9)
 
-    # select only questions here
+    # select only questions here with PostType == 1
     smask = store_meta.select_as_coordinates("posts", "PostTypeId == 1")
     qs = store_meta.select("posts", where=smask)
     qs.set_index("Id", inplace=True, drop=False)
@@ -82,26 +85,23 @@ def PrepareData(cfg):
     now = pd.datetime.now()
     qs["dt_created"] = now - qs.CreationDate
 
-    # getting the answers
-    answers = store_meta.select("posts", where=store_meta.select_as_coordinates("posts", "PostTypeId == 2"))
-    answers.set_index("Id", inplace=True, drop=False)
-    print "Shape of answer df", answers.shape
+    if "dictionary" in cfg.options["read"]:
+        print "Loading word dictionary..."
+        words = store_dict.select("dict")
+        words["freqs"] = words.n * 1. / words.n.sum()
+        words = words.sort_values(by="n", ascending=False)
+        words["order"] = np.arange(1, words.shape[0] + 1)
 
-    # word dictionary
-    print "Loading word dictionary..."
-    words = store_dict.select("dict")
-    words["freqs"] = words.n * 1. / words.n.sum()
-    words = words.sort_values(by="n", ascending=False)
-    words["order"] = np.arange(1, words.shape[0] + 1)
+        print "Shape of dictionary", words.shape
 
-    print "Shape of dictionary", words.shape
+        # drop known nuisance words that made it into the list
+        print "Warning! Dropping some words from word list, please verify!"
+        drops = [1211]
+        for dind in drops:
+            print "Dropping %i" % dind
+            words = words.drop(dind)
 
-    # drop known nuisance words that made it into the list
-    print "Warning! Dropping some words from word list, please verify!"
-    drops = [1211]
-    for dind in drops:
-        print "Dropping %i" % dind
-        words = words.drop(dind)
+        cfg.data["dict"] = words
 
     features = store_feat.select("words")
     features.set_index("Id", inplace=True, drop=False)
@@ -120,6 +120,16 @@ def PrepareData(cfg):
     print "This affects %i questions." % (np.sum(mask))
     qs = qs[~mask]
 
+    if "features" in cfg.options["read"]:
+        cfg.data["features"] = features
+    else:
+        del features
+
+    # getting the answers
+    answers = store_meta.select("posts", where=store_meta.select_as_coordinates("posts", "PostTypeId == 2"))
+    answers.set_index("Id", inplace=True, drop=False)
+    print "Shape of answer df", answers.shape
+
     # merge information about first answer into the frame
     answers = answers.sort_values(by="CreationDate", ascending=True)
     qs = qs.merge(answers[["ParentId", "CreationDate"]].drop_duplicates("ParentId"),
@@ -128,6 +138,12 @@ def PrepareData(cfg):
     # merge in information about accepted answer
     qs = qs.merge(answers[["Id", "CreationDate"]],
                   how="left", left_on="AcceptedAnswerId", right_on="Id", suffixes=("", "_acc"))
+
+    if "answers" in cfg.options["read"]:
+        cfg.data["answers"] = answers
+    else:
+        print "Information from answer df was merged into question df, but original df is trying to be closed and deleted from memory! Please change the config options to keep it open!"
+        del answers
 
     qs["CreationDate_first"] = pd.to_datetime(qs.CreationDate_first, origin="julian", unit="D")
     qs["CreationDate_acc"] = pd.to_datetime(qs.CreationDate_acc, origin="julian", unit="D")
@@ -144,6 +160,10 @@ def PrepareData(cfg):
     qs["dt_answer_hour"] = qs.dt_answer.dt.total_seconds() * 1. / 3600
     qs["dt_accanswer_hour"] = qs.dt_accanswer.dt.total_seconds() * 1. / 3600
 
+    qs["quickanswer"] = 0
+    mask = np.isfinite(qs.dt_accanswer_hour) & (qs.dt_accanswer_hour > 3)
+    qs.loc[mask, "quickanswer"] = 1
+
     # normalizing some columns
     print "Calculating normalized columns. They are available under usual column name + _norm."
     cols = ["BodyNCodes", "BodyNQMarks", "BodySize", "titlelen", "nwords", "ordersum",
@@ -154,9 +174,10 @@ def PrepareData(cfg):
 
     # saving for convenient use in notebooks
     cfg.data["meta"] = qs
-    cfg.data["dict"] = words
-    cfg.data["features"] = features
-    cfg.data["answers"] = answers
+    cfg.data["dbconn"] = conn
+
+    # manual gc to improve memory footprint while working in jupyter notebooks
+    gc.collect()
 
 
 def NormalizeColumns(df, cols):
@@ -172,7 +193,7 @@ def TimeAnalysis(cfg):
 def SimpleAnalysis(cfg):
 
     # selecting data from 2017
-    # posts_path = os.path.join(cfg.paths["db"])
+    posts_path = os.path.join(cfg.paths["db"])
     meta_path = os.path.join(cfg.paths["metas"], "posts_2017.hdf5")
     dict_path = os.path.join(cfg.paths["dictionaries"], "words_2017.hdf5")
     features_path = os.path.join(cfg.paths["features"], "features_2017.hdf5")
