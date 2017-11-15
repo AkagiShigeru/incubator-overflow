@@ -29,14 +29,31 @@ from sklearn.pipeline import Pipeline
 from sklearn import model_selection
 from scipy import stats
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.svm import SVR, SVC
+from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
+from sklearn.svm import SVR, SVC, LinearSVC
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.neighbors import KNeighborsRegressor
+
+from keras.preprocessing.text import one_hot, Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Flatten
+from keras.layers import LSTM
+from sklearn.model_selection import train_test_split
+from keras.models import Input, Model
+from keras.layers import Dense, Embedding, GlobalAveragePooling1D, concatenate, Activation
+from keras.layers.core import Masking, Dropout, Reshape
+from keras.layers.normalization import BatchNormalization
+
+from keras.utils.vis_utils import model_to_dot
+from keras.utils import plot_model
+
+from keras.callbacks import CSVLogger
 
 from IPython import embed
 
@@ -150,6 +167,7 @@ def PrepareData(cfg, verbose=False):
 
     qs["dayhour"] = qs.CreationDate.dt.hour
     qs["weekday"] = qs.CreationDate.dt.dayofweek
+    qs["day"] = qs.CreationDate.dt.dayofyear
 
     # time between questions posing and first answer
     dtanswer = qs.CreationDate_first - qs.CreationDate

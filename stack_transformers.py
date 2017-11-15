@@ -32,7 +32,7 @@ class ColumnSelectTransformer(base.BaseEstimator, base.TransformerMixin):
         return self
 
     def transform(self, X):
-        return X[self.col_names]
+        return np.squeeze(X[self.col_names].values)
 
 
 class DictEncoder(base.BaseEstimator, base.TransformerMixin):
