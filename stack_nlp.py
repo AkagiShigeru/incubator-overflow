@@ -60,6 +60,22 @@ from keras.callbacks import CSVLogger
 from IPython import embed
 
 
+def GetEmbeddingVectors(embeddings_path):
+    embedding_vectors = {}
+
+    with open(embeddings_path, 'r') as f:
+        for line in f:
+            line_split = line.strip().split(" ")
+            vec = np.array(line_split[1:], dtype=float)
+            word = line_split[0]
+            embedding_vectors[word] = vec
+
+
+def ConvertToGensimFile(embeddings_path, word2vec_output_file):
+    from gensim.scripts.glove2word2vec import glove2word2vec
+    glove2word2vec(embeddings_path, word2vec_output_file)
+
+
 def MergeDicts(dictlist):
     """ Return a merged dictionary. """
     pass
@@ -101,8 +117,10 @@ def PrepareData(cfg, verbose=False):
     for datecol in datecols:
         qs[datecol] = pd.to_datetime(qs[datecol], origin="julian", unit="D")
 
-    now = pd.datetime.now()
-    qs["dt_created"] = now - qs.CreationDate
+    # time between post creation and end of data dump
+    enddump = pd.to_datetime("27/08/2017")
+    qs["dt_created"] = enddump - qs.CreationDate
+    qs["dt_created_day"] = qs.dt_created.dt.total_seconds() * 1. / 3600 / 24
 
     if "dictionary" in cfg.options["read"]:
         print "Loading word dictionary..."
