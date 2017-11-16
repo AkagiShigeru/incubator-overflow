@@ -36,6 +36,23 @@ cols_desc = {"AnswerCount": "Number of replies", "BodyNCodes": "Number of code t
 hparser = HTMLParser()
 
 
+def YieldDBPosts(conn, nchunk=1000):
+    cursor = conn.execute("SELECT post FROM posts")
+    while True:
+        results = cursor.fetchmany(nchunk)
+        if not results:
+            break
+        for result in results:
+            yield result
+
+
+def GetDBPosts(idlist, conn):
+    posts = []
+    for idi in idlist:
+        posts.append(conn.execute("SELECT post FROM posts WHERE id=?", (idi,)).fetchall()[0][0])
+    return posts
+
+
 def local_import(x):
     """Only works on Unix and x may not be the name of a builtin module"""
     import os
@@ -54,6 +71,27 @@ def local_import(x):
     sys.path = save_path
     sys.path.pop()
     return rv
+
+
+def SelectUniformlyFromColumn(df, col, n=100000, randomize=True):
+    from sklearn.utils import shuffle
+    uniques = df[col].unique()
+    nu = n // len(uniques)
+    navailable = df.groupby(col).apply(len)
+    if min(navailable) < nu:
+        print "Warning! There are not enough unique items of each category to sample, output df will have reduced size!"
+        nu = min(navailable)
+    new = None
+    for unique in uniques:
+        sel = df[df[col] == unique].sample(nu)
+        if new is None:
+            new = sel
+        else:
+            new = new.append(sel)
+    if randomize:
+        return shuffle(new)
+    else:
+        return new
 
 
 def CleanString(s):
