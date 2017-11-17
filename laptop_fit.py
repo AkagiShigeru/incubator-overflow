@@ -46,14 +46,20 @@ fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
 fit_nn["nfeatures"] = 10000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
+# fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
+#                       "BodySize", "titlelen", "nwords", "ordermean",
+#                       "orderstd", "ratio", "weekday", "dayhour", "day"]
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
-                      "orderstd", "ratio", "weekday", "dayhour", "day"]
+                      "orderstd", "weekday", "dayhour", "day"]
 
 fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
 
 fit_nn["nsample"] = 200000
 fit_nn["uniform"] = True
-fit_nn["save"] = "./models/model_test.keras"
+fit_nn["nepoch"] = 5
+fit_nn["nbatch"] = 100
+fit_nn["nsplit"] = 0.2
+fit_nn["save"] = True
 fits.append(fit_nn.copy())

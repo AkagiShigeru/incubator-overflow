@@ -61,225 +61,140 @@ def FittingFriend(cfg):
         print "Length of the training set:", len(qstrain)
         print "Length of the testing set:", len(qstest)
 
+        inp_data = []
 
-posts_train = GetDBPosts(qstrain.Id.values, conn)
-posts_test = GetDBPosts(qstest.Id.values, conn)
-conn.close()
+        word_tokenizer = False
+        if fit.get("posts", True):
 
+            print "Retrieving relevant posts for training and testing."
+            posts_train = GetDBPosts(qstrain.Id.values, conn)
+            posts_test = GetDBPosts(qstest.Id.values, conn)
+            conn.close()
 
-titles_train = np.squeeze(qstrain.Title.values)
-titles_test = np.squeeze(qstest.Title.values)
+            word_tokenizer = Tokenizer(fit["nfeatures"])
+            word_tokenizer.fit_on_texts(posts_train)
 
+            print "Tokenizing..."
+            posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
+            posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
 
-max_features = 50000
+            embed()
 
-word_tokenizer = Tokenizer(max_features)
-word_tokenizer.fit_on_texts(posts_train)
+            maxlen_posts = 500
+            print "Padding to length %i..." % maxlen_posts
+            posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
+                                           padding="post", truncating="post")
+            posts_test_tf = pad_sequences(posts_test_tf, maxlen=maxlen_posts,
+                                          padding="post", truncating="post")
 
+            inp_data.append(posts_train_tf)
 
-# In[11]:
+        if fit.get("titles", True):
+            print "Retrieving relevant titles for training and testing."
+            titles_train = np.squeeze(qstrain.Title.values)
+            titles_test = np.squeeze(qstest.Title.values)
 
+            if not word_tokenizer:
+                print "Building tokenizer on titles."
+                word_tokenizer = Tokenizer(fit["nfeatures"])
+                word_tokenizer.fit_on_texts(titles_train)
 
-# actual tokenization using the tokenizer from above
-posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
-posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
+            titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
+            titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
 
-# padding to a maximal question length for all questions
-maxlen_posts = 1000
-posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts, padding="post", truncating="post")
-posts_test_tf = pad_sequences(posts_test_tf, maxlen=maxlen_posts, padding="post", truncating="post")
+            # padding to a maximal title length
+            maxlen_titles = 50
+            titles_train_tf = pad_sequences(titles_train_tf, maxlen=maxlen_titles, padding="post", truncating="post")
+            titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
 
-print(posts_train_tf[0])
+            inp_data.append(titles_train_tf)
 
+        # setting up weights matrix for embedding in keras
+        weights_matrix = np.zeros((fit["nfeatures"] + 1, fit["embed_dim"]))
+        for word, i in word_tokenizer.word_index.items():
 
-# In[27]:
+            if i > fit["nfeatures"]:
+                continue
+            try:
+                embedding_vector = gmod.word_vec(word)
+                if embedding_vector is not None:
+                    weights_matrix[i] = embedding_vector
+            except:
+                weights_matrix[i] = np.zeros(fit["embed_dim"])
 
+        pools = []
+        outs = []
+        inps = []
 
-titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
-titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
+        if fit.get("posts", True):
 
-# padding to a maximal title length
-maxlen_titles = 50
-titles_train_tf = pad_sequences(titles_train_tf, maxlen=maxlen_titles, padding="post", truncating="post")
-titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
+            posts_input = Input(shape=(maxlen_posts,), name="posts_input")
+            posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                                        weights=[weights_matrix])(posts_input)
+            pools.append(GlobalAveragePooling1D()(posts_embedding))
+            outs.append(Dense(1, activation="sigmoid", name="posts_reg_out")(posts_pooling))
+            inps.append(posts_input)
 
-print(titles_train_tf[0])
+        if fit.get("titles", True):
 
+            titles_input = Input(shape=(maxlen_titles,), name="titles_input")
+            titles_embedding = Embedding(max_features + 1, embed_dim, weights=[weights_matrix])(titles_input)
+            pools.append(GlobalAveragePooling1D()(titles_embedding))
+            outs.append(Dense(1, activation="sigmoid", name="aux_out2")(titles_pooling))
+            inps.append(titles_input)
 
-# In[13]:
+        meta_embedding_dims = 64
+        for feat in cfg.get("features", []):
 
+            feat_input = Input(shape=(1,), name="%s_input" % feat)
+            feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
+            pools.append(Reshape((meta_embedding_dims,))(feat_embedding))
+            inps.append(feat_input)
 
-# setting up weights matrix for embedding in keras
-weights_matrix = np.zeros((max_features + 1, embed_dim))
+            inp_data.append(qstrain["feat"])
 
-for word, i in word_tokenizer.word_index.items():
+        merged = concatenate(pools)
 
-    if i > max_features:
-        continue
-    try:
-#         embedding_vector = embedding_vectors.get(word)
-        embedding_vector = gensimmodel.word_vec(word)
-        if embedding_vector is not None:
-            weights_matrix[i] = embedding_vector
-    except:
-        weights_matrix[i] = np.zeros(embed_dim)
+        hidden_1 = Dense(256, activation="relu")(merged)
+        hidden_1 = BatchNormalization()(hidden_1)
 
+        main_output = Dense(1, activation="sigmoid", name="main_out")(hidden_1)
 
-# In[14]:
+        model = Model(inputs=inps, outputs=[main_output] + outs)
 
+        model.compile(loss="binary_crossentropy",
+                      optimizer="adam",
+                      metrics=["accuracy"],
+                      loss_weights=[1, 0.2, 0.2])
 
-batch_size = 100
-epochs = 20
-split = 0.2
+        print model.summary()
 
+        plot_model(model, to_file='./plots/fit_%s.pdf' % fit["id"])
+        plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fit["id"], show_shapes=True)
 
-# In[15]:
+        print "No-information baselines for each group:"
+        print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
+        print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
+        print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
 
+        csv_logger = CSVLogger("./logging/training_%s.csv" % fit["id"])
 
-# setting up posts branch for modeling
-posts_input = Input(shape=(maxlen_posts,), name="posts_input")
-posts_embedding = Embedding(max_features + 1, embed_dim, weights=[weights_matrix])(posts_input)
-posts_pooling = GlobalAveragePooling1D()(posts_embedding)
+        # from keras.callbacks import EarlyStopping
+        # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
-aux_output = Dense(1, activation="sigmoid", name="aux_out")(posts_pooling)
+        model.fit(inp_data, [qstrain[label] for _ in xrange(len(outs) + 1)],
+                  batch_size=fit["nbatch"], epochs=fit["nepoch"],
+                  validation_split=fit["nsplit"], callbacks=[csv_logger])
 
+        a = model.evaluate(x=[posts_test_tf, titles_test_tf, qstest.dayhour.values, qstest.weekday.values, qstest.day.values],
+                           y=[qstest[label] for _ in xrange(len(outs) + 1)])
 
-# In[18]:
+        print "Testing results:", a
 
+        if cfg.get("save", False):
 
-# setting up posts branch for modeling
-titles_input = Input(shape=(maxlen_titles,), name="titles_input")
-titles_embedding = Embedding(max_features + 1, embed_dim, weights=[weights_matrix])(titles_input)
-titles_pooling = GlobalAveragePooling1D()(titles_embedding)
-
-aux_output2 = Dense(1, activation="sigmoid", name="aux_out2")(titles_pooling)
-
-
-# In[19]:
-
-
-# adding embeddings for other features
-relcols = ["BodyNCodes", "BodyNQMarks", "BodySize", "titlelen", "nwords", "ordersum", "ordermean", "orderstd", "ratio"]
-# todo: extend here to actually add all needed embeddings in dynamic way
-
-meta_embedding_dims = 64
-
-hours_input = Input(shape=(1,), name="hours_input")
-hours_embedding = Embedding(24, meta_embedding_dims)(hours_input)
-hours_reshape = Reshape((meta_embedding_dims,))(hours_embedding)
-
-dayofweeks_input = Input(shape=(1,), name="dayofweeks_input")
-dayofweeks_embedding = Embedding(7, meta_embedding_dims)(dayofweeks_input)
-dayofweeks_reshape = Reshape((meta_embedding_dims,))(dayofweeks_embedding)
-
-dayofyears_input = Input(shape=(1,), name="dayofyears_input")
-dayofyears_embedding = Embedding(366, meta_embedding_dims)(dayofyears_input)
-dayofyears_reshape = Reshape((meta_embedding_dims,))(dayofyears_embedding)
-
-
-# In[20]:
-
-
-# connecting the different embeddings
-merged = concatenate([posts_pooling, titles_pooling, hours_reshape, dayofweeks_reshape, dayofyears_reshape])
-
-hidden_1 = Dense(256, activation="relu")(merged)
-hidden_1 = BatchNormalization()(hidden_1)
-
-main_output = Dense(1, activation="sigmoid", name="main_out")(hidden_1)
-
-
-# In[21]:
-
-
-model = Model(inputs=[posts_input,
-                      titles_input,
-                      hours_input,
-                      dayofweeks_input,
-                      dayofyears_input], outputs=[main_output, aux_output, aux_output2])
-
-model.compile(loss="binary_crossentropy",
-              optimizer="adam",
-              metrics=["accuracy"],
-              loss_weights=[1, 0.2, 0.2])
-
-model.summary()
-
-
-# In[56]:
-
-
-plot_model(model, to_file='./plots/keras_model.png')
-plot_model(model, to_file='./plots/model_shapes.png', show_shapes=True)
-
-
-# In[22]:
-
-
-print np.sum(qstrain[label]), qstrain[label].shape
-print 1 - np.sum(qstrain[label]) * 1. / qstrain[label].shape[0]
-print 1 - np.sum(qstest[label]) * 1. / qstest[label].shape[0]
-print(1 - np.mean(qstrain[label][:(int(posts_train_tf.shape[0] * split))]))
-print(1 - np.mean(qstest[label][:(int(posts_test_tf.shape[0] * split))]))
-
-
-# In[24]:
-
-
-csv_logger = CSVLogger('training.csv')
-
-
-# In[25]:
-
-
-# fitting :)
-model.fit([posts_train_tf, titles_train_tf, qstrain.dayhour.values, qstrain.weekday.values, qstrain.day.values],
-          [qstrain[label], qstrain[label], qstrain[label]],
-          batch_size=batch_size,
-          epochs=5,
-          validation_split=split, callbacks=[csv_logger])
-
-
-# In[28]:
-
-
-a = model.evaluate(x=[posts_test_tf, titles_test_tf, qstest.dayhour.values, qstest.weekday.values, qstest.day.values],
-                   y=[qstest[label], qstest[label], qstest[label]])
-
-
-# In[33]:
-
-
-model.save("keras_ispython.nnmodel")
-model.save_weights("keras_ispython_weights.nnmodel")
-
-
-# In[29]:
-
-
-print a
-
-
-# In[49]:
-
-
-preds = a[0]
-
-
-# In[60]:
-
-
-preds_bin = np.around(preds).T[0]
-
-
-# In[64]:
-
-
-print np.sum(preds_bin == label)
-print len(preds_bin)
-
-
-
+            model.save("./models/keras_full_%s.keras" % cfg["id"])
+            model.save_weights("./models/keras_weights_%s.keras" % cfg["id"])
 
 if __name__ == "__main__":
 
