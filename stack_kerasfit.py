@@ -26,6 +26,7 @@ def AddTimeCategories(df, timequants):
 
 def FittingFriend(cfg):
 
+    print "Importing and preparing data..."
     PrepareData(cfg)
     data = cfg.data
     qs = data["meta"]
@@ -36,10 +37,11 @@ def FittingFriend(cfg):
 
         assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
 
-        if not os.path.exists(fit_nn["embed_out"]):
-            ConvertToGensimFile(fit_nn["embed_path"], fit_nn["embed_out"])
+        if not os.path.exists(fit["embed_out"]):
+            ConvertToGensimFile(fit["embed_path"], fit["embed_out"])
 
-        gmod = KeyedVectors.load_word2vec_format(fit_nn["embed_out"], binary=False)
+        print "Opening embedding vectors"
+        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
 
         assert "labelfct" in fit, "Necessary to provide label function!"
 
@@ -49,7 +51,7 @@ def FittingFriend(cfg):
 
         if fit.get("uniform", True):
 
-            print "Selecting a sample of %i posts randomly and uniformly." % nsample
+            print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
             qssel = SelectUniformlyFromColumn(qs, "label", n=nsample)
 
         else:
@@ -71,6 +73,7 @@ def FittingFriend(cfg):
             posts_test = GetDBPosts(qstest.Id.values, conn)
             conn.close()
 
+            print "Fitting tokenizer..."
             word_tokenizer = Tokenizer(fit["nfeatures"])
             word_tokenizer.fit_on_texts(posts_train)
 
@@ -78,9 +81,7 @@ def FittingFriend(cfg):
             posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
             posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
 
-            embed()
-
-            maxlen_posts = 500
+            maxlen_posts = 600  # this catches 95 % of everything
             print "Padding to length %i..." % maxlen_posts
             posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
                                            padding="post", truncating="post")
@@ -101,6 +102,8 @@ def FittingFriend(cfg):
 
             titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
             titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
+
+            embed()
 
             # padding to a maximal title length
             maxlen_titles = 50
@@ -132,15 +135,15 @@ def FittingFriend(cfg):
             posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
                                         weights=[weights_matrix])(posts_input)
             pools.append(GlobalAveragePooling1D()(posts_embedding))
-            outs.append(Dense(1, activation="sigmoid", name="posts_reg_out")(posts_pooling))
+            outs.append(Dense(1, activation="sigmoid", name="posts_reg_out")(pools[-1]))
             inps.append(posts_input)
 
         if fit.get("titles", True):
 
             titles_input = Input(shape=(maxlen_titles,), name="titles_input")
-            titles_embedding = Embedding(max_features + 1, embed_dim, weights=[weights_matrix])(titles_input)
+            titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"], weights=[weights_matrix])(titles_input)
             pools.append(GlobalAveragePooling1D()(titles_embedding))
-            outs.append(Dense(1, activation="sigmoid", name="aux_out2")(titles_pooling))
+            outs.append(Dense(1, activation="sigmoid", name="aux_out2")(pools[-1]))
             inps.append(titles_input)
 
         meta_embedding_dims = 64
