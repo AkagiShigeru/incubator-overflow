@@ -19,3 +19,4 @@ other/
 *.dill
 *.sublime-workspace
 *.word2vec
+models/
