@@ -103,10 +103,7 @@ def FittingFriend(cfg):
             titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
             titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
 
-            embed()
-
-            # padding to a maximal title length
-            maxlen_titles = 50
+            maxlen_titles = 30  # catches all sentences in training set checked on 17/11
             titles_train_tf = pad_sequences(titles_train_tf, maxlen=maxlen_titles, padding="post", truncating="post")
             titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
 
@@ -147,14 +144,14 @@ def FittingFriend(cfg):
             inps.append(titles_input)
 
         meta_embedding_dims = 64
-        for feat in cfg.get("features", []):
+        for feat in fit.get("features", []):
 
             feat_input = Input(shape=(1,), name="%s_input" % feat)
             feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
             pools.append(Reshape((meta_embedding_dims,))(feat_embedding))
             inps.append(feat_input)
 
-            inp_data.append(qstrain["feat"])
+            inp_data.append(qstrain[feat])
 
         merged = concatenate(pools)
 
@@ -194,7 +191,7 @@ def FittingFriend(cfg):
 
         print "Testing results:", a
 
-        if cfg.get("save", False):
+        if fit.get("save", False):
 
             model.save("./models/keras_full_%s.keras" % cfg["id"])
             model.save_weights("./models/keras_weights_%s.keras" % cfg["id"])
