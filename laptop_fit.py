@@ -51,7 +51,8 @@ fit_nn["titles"] = True
 #                       "orderstd", "ratio", "weekday", "dayhour", "day"]
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
-                      "orderstd", "weekday", "dayhour", "day"]
+                      "orderstd"]
+fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 
 fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)

@@ -81,7 +81,7 @@ def FittingFriend(cfg):
             posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
             posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
 
-            maxlen_posts = 600  # this catches 95 % of everything
+            maxlen_posts = 600  # this catches roughly 95 % of all posts
             print "Padding to length %i..." % maxlen_posts
             posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
                                            padding="post", truncating="post")
@@ -138,20 +138,26 @@ def FittingFriend(cfg):
         if fit.get("titles", True):
 
             titles_input = Input(shape=(maxlen_titles,), name="titles_input")
-            titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"], weights=[weights_matrix])(titles_input)
+            titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                                         weights=[weights_matrix])(titles_input)
             pools.append(GlobalAveragePooling1D()(titles_embedding))
-            outs.append(Dense(1, activation="sigmoid", name="aux_out2")(pools[-1]))
+            outs.append(Dense(1, activation="sigmoid", name="titles_reg_out")(pools[-1]))
             inps.append(titles_input)
 
         meta_embedding_dims = 64
-        for feat in fit.get("features", []):
+        for feat in fit.get("cat_features", []):
 
-            feat_input = Input(shape=(1,), name="%s_input" % feat)
+            feat_input = Input(shape=(1,), name="%s_input_cat" % feat)
             feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
             pools.append(Reshape((meta_embedding_dims,))(feat_embedding))
             inps.append(feat_input)
 
             inp_data.append(qstrain[feat])
+
+        for feat in fit.get("features", []):
+            feat_input = Input(shape=(1,), name="%s_input" % feat)
+            pools.append(feat_input)
+            inps.append(feat_input)
 
         merged = concatenate(pools)
 
@@ -182,12 +188,12 @@ def FittingFriend(cfg):
         # from keras.callbacks import EarlyStopping
         # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
-        model.fit(inp_data, [qstrain[label] for _ in xrange(len(outs) + 1)],
+        model.fit(inp_data, [qstrain["label"] for _ in xrange(len(outs) + 1)],
                   batch_size=fit["nbatch"], epochs=fit["nepoch"],
                   validation_split=fit["nsplit"], callbacks=[csv_logger])
 
-        a = model.evaluate(x=[posts_test_tf, titles_test_tf, qstest.dayhour.values, qstest.weekday.values, qstest.day.values],
-                           y=[qstest[label] for _ in xrange(len(outs) + 1)])
+        # a = model.evaluate(x=[posts_test_tf, titles_test_tf, qstest.dayhour.values, qstest.weekday.values, qstest.day.values],
+        #                    y=[qstest[label] for _ in xrange(len(outs) + 1)])
 
         print "Testing results:", a
 
@@ -195,6 +201,9 @@ def FittingFriend(cfg):
 
             model.save("./models/keras_full_%s.keras" % cfg["id"])
             model.save_weights("./models/keras_weights_%s.keras" % cfg["id"])
+
+        embed()
+
 
 if __name__ == "__main__":
 
