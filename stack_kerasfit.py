@@ -89,6 +89,7 @@ def FittingFriend(cfg):
                                           padding="post", truncating="post")
 
             inp_data.append(posts_train_tf)
+            inp_test_data.append(posts_test_tf)
 
         if fit.get("titles", True):
             print "Retrieving relevant titles for training and testing."
@@ -108,6 +109,7 @@ def FittingFriend(cfg):
             titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
 
             inp_data.append(titles_train_tf)
+            inp_test_data.append(titles_test_tf)
 
         # setting up weights matrix for embedding in keras
         weights_matrix = np.zeros((fit["nfeatures"] + 1, fit["embed_dim"]))
@@ -153,11 +155,15 @@ def FittingFriend(cfg):
             inps.append(feat_input)
 
             inp_data.append(qstrain[feat])
+            inp_test_data.append(qstest[feat])
 
         for feat in fit.get("features", []):
             feat_input = Input(shape=(1,), name="%s_input" % feat)
             pools.append(feat_input)
             inps.append(feat_input)
+
+            inp_data.append(qstrain[feat])
+            inp_test_data.append(qstest[feat])
 
         merged = concatenate(pools)
 
@@ -192,9 +198,8 @@ def FittingFriend(cfg):
                   batch_size=fit["nbatch"], epochs=fit["nepoch"],
                   validation_split=fit["nsplit"], callbacks=[csv_logger])
 
-        # a = model.evaluate(x=[posts_test_tf, titles_test_tf, qstest.dayhour.values, qstest.weekday.values, qstest.day.values],
-        #                    y=[qstest[label] for _ in xrange(len(outs) + 1)])
-
+        a = model.evaluate(x=inp_test_data,
+                           y=[qstest[label] for _ in xrange(len(outs) + 1)])
         print "Testing results:", a
 
         if fit.get("save", False):
