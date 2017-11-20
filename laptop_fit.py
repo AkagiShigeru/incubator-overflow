@@ -8,6 +8,7 @@
 import os
 from copy import copy
 import numpy as np
+import pandas as pd
 
 
 # paths
@@ -22,12 +23,14 @@ paths["dictionaries"] = os.path.join(paths["caches"], "dictionaries/")
 # data
 data = {}
 
-posts_path = paths["db"]
-meta_path = os.path.join(paths["metas"], "posts_2017.hdf5")
-# dict_path = os.path.join(paths["dictionaries"], "words_2017.hdf5")  # for old features
-dict_path = os.path.join(paths["dictionaries"], "merged.hdf5")
-features_path = os.path.join(paths["features"], "features_2017.hdf5")
+year = 2016
 
+posts_path = paths["db"]
+meta_path = os.path.join(paths["metas"], "posts_%s.hdf5" % year)
+dict_path = os.path.join(paths["dictionaries"], "merged.hdf5")
+features_path = os.path.join(paths["features"], "features_%s.hdf5" % year)
+mostcommontags_path = "./infos/most_common_tags.csv"
+mostcommon_tags = pd.read_csv(mostcommontags_path)
 
 # options (what data to read etc)
 options = {}
@@ -54,11 +57,25 @@ fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "orderstd"]
 fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 
-fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
+# just identifying python label
+# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
+
+
+def LocateFirst(l, tagdf, nt=10):
+    """ Returns index of most common element/tag in line of tags."""
+    for e in xrange(nt):
+        if tagdf.iloc[e].tags in l:
+            return e
+    else:
+        return nt
+# identifying first n labels
+fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
+
+# score > 0 label
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
 
-fit_nn["nsample"] = 200000
-fit_nn["uniform"] = True
+fit_nn["nsample"] = 400000
+fit_nn["uniform"] = False
 fit_nn["nepoch"] = 20
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2

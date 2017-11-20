@@ -95,6 +95,8 @@ def SelectionAndShuffling(cfg):
 
 def PrepareData(cfg, verbose=False):
 
+    print "Using meta path:", cfg.meta_path
+
     conn = sqlite3.connect(cfg.posts_path)
     store_meta = pd.HDFStore(cfg.meta_path, "r", complib="blosc", complevel=9)
     store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)

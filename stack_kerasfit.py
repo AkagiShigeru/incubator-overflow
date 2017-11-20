@@ -24,6 +24,21 @@ def AddTimeCategories(df, timequants):
     df.loc[~tmask, "timecat"] = len(timequants) - 1
 
 
+def GetMostCommonTags(df, n=20):
+    """ Get the most common tags of questions in a df."""
+    from collections import defaultdict
+    c = defaultdict(int)
+
+    def add(t):
+        c[t] += 1
+    df.Tags.apply(lambda x: [add(t) for t in x])
+
+    skeys = sorted(c, key=c.get, reverse=True)
+    tagdf = pd.DataFrame({"tags": skeys, "counts": [c[sk] for sk in skeys]})
+    tagdf.set_index("tags", inplace=True)
+    return tagdf.iloc[:n]
+
+
 def FittingFriend(cfg):
 
     print "Importing and preparing data..."
@@ -33,21 +48,28 @@ def FittingFriend(cfg):
     conn = data["dbconn"]
 
     for fit in cfg.fits:
-        print "Working on fit of type %s with name %s" % (fit["type"], fit["name"])
+        print "\nWorking on fit of type %s with name %s" % (fit["type"], fit["name"])
 
         assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
 
         if not os.path.exists(fit["embed_out"]):
             ConvertToGensimFile(fit["embed_path"], fit["embed_out"])
 
-        print "Opening embedding vectors"
-        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
-
         assert "labelfct" in fit, "Necessary to provide label function!"
 
-        # calculating labels
+        if fit.get("create_common_tags", False):  # creating most common tags
+            mostcommon = GetMostCommonTags(qs, n=1000)
+            mostcommon.to_csv("./infos/most_common_tags.csv")
+            a = pd.HDFStore("./infos/most_common_tags.hdf5", mode="w", complib="blosc", complevel=9)
+            a.put("tags", mostcommon)
+            a.close()
+            return 0.
+
+        print "Calculating labels according to provided label function..."
         qs["label"] = fit["labelfct"](qs)
         nsample = fit.get("nsample", 100000)
+
+        embed()
 
         if fit.get("uniform", True):
 
@@ -62,6 +84,9 @@ def FittingFriend(cfg):
         qstest = qssel.iloc[int(0.8 * qssel.shape[0]):]
         print "Length of the training set:", len(qstrain)
         print "Length of the testing set:", len(qstest)
+
+        print "Opening embedding vectors"
+        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
 
         inp_data = []
 
@@ -174,7 +199,8 @@ def FittingFriend(cfg):
 
         model = Model(inputs=inps, outputs=[main_output] + outs)
 
-        model.compile(loss="binary_crossentropy",
+        # model.compile(loss="binary_crossentropy",
+        model.compile(loss="categorical_crossentropy",
                       optimizer="adam",
                       metrics=["accuracy"],
                       loss_weights=[1, 0.2, 0.2])
@@ -194,12 +220,12 @@ def FittingFriend(cfg):
         # from keras.callbacks import EarlyStopping
         # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
-        model.fit(inp_data, [qstrain["label"] for _ in xrange(len(outs) + 1)],
+        model.fit(inp_data, [to_categorical(qstrain["label"]) for _ in xrange(len(outs) + 1)],
                   batch_size=fit["nbatch"], epochs=fit["nepoch"],
                   validation_split=fit["nsplit"], callbacks=[csv_logger])
 
         a = model.evaluate(x=inp_test_data,
-                           y=[qstest[label] for _ in xrange(len(outs) + 1)])
+                           y=[to_categorical(qstest["label"]) for _ in xrange(len(outs) + 1)])
         print "Testing results:", a
 
         if fit.get("save", False):
