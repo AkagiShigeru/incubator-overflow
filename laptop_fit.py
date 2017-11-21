@@ -83,7 +83,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     return df.label
 
 # score groups
-fit_nn["labelfct"] = scoregroups
+fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.9])
 
 fit_nn["nsample"] = 400000
 fit_nn["uniform"] = True
@@ -94,4 +94,5 @@ fit_nn["save"] = True
 fit_nn["binary"] = False
 fit_nn["clean"] = True
 fit_nn["cnn"] = True
+fit_nn["train_embeddings"] = True
 fits.append(fit_nn.copy())

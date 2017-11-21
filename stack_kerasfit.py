@@ -40,6 +40,67 @@ def GetMostCommonTags(df, n=20):
     return tagdf.iloc[:n]
 
 
+# The function "text_to_wordlist" is from
+# https://www.kaggle.com/currie32/quora-question-pairs/the-importance-of-cleaning-text
+# adapted slightly
+def TextCleansing(text, remove_stopwords=True, stem_words=False):
+    """ Clean the text, with the option to remove stopwords and to stem words. """
+    try:
+        from spacy.lang.en import STOP_WORDS as STOPWORDS
+    except:
+        from spacy.en import STOPWORDS
+
+    from nltk.stem import SnowballStemmer
+
+    text = text.lower()
+
+    # Clean the text
+    text = re.sub(r"[^A-Za-z0-9^,!.\/'+-=]", " ", text)
+    text = re.sub(r"what's", "what is ", text)
+    text = re.sub(r"\'s", " ", text)
+    text = re.sub(r"\'ve", " have ", text)
+    text = re.sub(r"can't", "cannot ", text)
+    text = re.sub(r"n't", " not ", text)
+    text = re.sub(r"i'm", "i am ", text)
+    text = re.sub(r"\'re", " are ", text)
+    text = re.sub(r"\'d", " would ", text)
+    text = re.sub(r"\'ll", " will ", text)
+    text = re.sub(r",", " ", text)
+    text = re.sub(r"\.", " ", text)
+    text = re.sub(r"!", " ! ", text)
+    text = re.sub(r"\/", " ", text)
+    text = re.sub(r"\^", " ^ ", text)
+    text = re.sub(r"\+", " + ", text)
+    text = re.sub(r"\-", " - ", text)
+    text = re.sub(r"\=", " = ", text)
+    text = re.sub(r"'", " ", text)
+    text = re.sub(r"(\d+)(k)", r"\g<1>000", text)
+    text = re.sub(r":", " : ", text)
+    text = re.sub(r" e g ", " eg ", text)
+    text = re.sub(r" b g ", " bg ", text)
+    text = re.sub(r" u s ", " american ", text)
+    text = re.sub(r"\0s", "0", text)
+    text = re.sub(r" 9 11 ", "911", text)
+    text = re.sub(r"e - mail", "email", text)
+    text = re.sub(r"j k", "jk", text)
+    text = re.sub(r"\s{2,}", " ", text)
+
+    # Optionally, remove stop words
+    if remove_stopwords:
+        text = text.split()
+        text = [w for w in text if w not in STOPWORDS]
+        text = " ".join(text)
+
+    # Optionally, shorten words to their stems
+    if stem_words:
+        text = text.split()
+        stemmer = SnowballStemmer("english")
+        stemmed_words = [stemmer.stem(word) for word in text]
+        text = " ".join(stemmed_words)
+
+    return text
+
+
 def FittingFriend(cfg):
 
     print "Importing and preparing data..."
@@ -92,7 +153,7 @@ def FittingFriend(cfg):
         print "Output label dimensions:", nouts
 
         print "Opening embedding vectors"
-        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
+        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=not fit.get("train_embeddings", True))
 
         inp_data = []
         inp_test_data = []
@@ -106,14 +167,8 @@ def FittingFriend(cfg):
 
             if fit.get("clean", False):
                 print "Cleaning posts..."
-
-                try:
-                    from spacy.lang.en import STOP_WORDS as STOPWORDS
-                except:
-                    from spacy.en import STOPWORDS
-
-                posts_train = [[w for w in p if p not in STOPWORDS] for p in posts_train]
-                posts_test = [[w for w in p if p not in STOPWORDS] for p in posts_test]
+                posts_train = [TextCleansing(p) for p in posts_train]
+                posts_test = [TextCleansing(p) for p in posts_test]
             else:
                 print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
 
@@ -125,9 +180,8 @@ def FittingFriend(cfg):
             posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
             posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
 
-            embed()
-
-            maxlen_posts = 600  # this catches roughly 95 % of all posts
+            # maxlen_posts = 600  # this catches roughly 95 % of all posts without text cleaning
+            maxlen_posts = 500  # this catches roughly 95 % of all posts with text cleaning
             print "Padding to length %i..." % maxlen_posts
             posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
                                            padding="post", truncating="post")
@@ -178,7 +232,9 @@ def FittingFriend(cfg):
 
             posts_input = Input(shape=(maxlen_posts,), name="posts_input")
             posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
-                                        weights=[weights_matrix])(posts_input)
+                                        weights=[weights_matrix],
+                                        input_length=maxlen_posts,
+                                        trainable=fit.get("train_embeddings", True))(posts_input)
             pools.append(GlobalAveragePooling1D()(posts_embedding))
             outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                               name="posts_reg_out")(pools[-1]))
@@ -188,7 +244,9 @@ def FittingFriend(cfg):
 
             titles_input = Input(shape=(maxlen_titles,), name="titles_input")
             titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
-                                         weights=[weights_matrix])(titles_input)
+                                         weights=[weights_matrix],
+                                         input_length=maxlen_titles,
+                                         trainable=fit.get("train_embeddings", True))(titles_input)
             pools.append(GlobalAveragePooling1D()(titles_embedding))
             outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                               name="titles_reg_out")(pools[-1]))
@@ -221,6 +279,10 @@ def FittingFriend(cfg):
                             activation="relu", strides=1)(merged)
             merged = GlobalMaxPooling1D()(merged)
 
+        # if fit.get("LSTM", False):
+            # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
+            # model.add(Dropout(0.3))
+
         hidden_1 = Dense(256, activation="relu")(merged)
         hidden_1 = BatchNormalization()(hidden_1)
 
@@ -251,7 +313,6 @@ def FittingFriend(cfg):
         # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
         convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
-
         try:
             model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
                       batch_size=fit["nbatch"], epochs=fit["nepoch"],
@@ -269,6 +330,10 @@ def FittingFriend(cfg):
             model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
 
         embed()
+
+        if fit.get("plots", True):
+            preds = model.predict(inp_test_data)
+
 
 
 if __name__ == "__main__":
