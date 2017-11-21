@@ -66,16 +66,32 @@ def LocateFirst(l, tagdf, nt=10):
     return nt
 
 # identifying first n labels
-fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
+# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
 
 # score > 0 label
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
 
-fit_nn["nsample"] = 300000
-fit_nn["uniform"] = False
+
+def scoregroups(df, upqs=[0.1, 0.9]):
+    from scipy.stats.mstats import mquantiles
+    df["label"] = 1
+    print "Performing automagical score grouping"
+    upqvals = np.append([df.Score.min()], np.append(mquantiles(df.Score, prob=upqs), [df.Score.max()]))
+    for ui in xrange(len(upqvals) - 1):
+        print "Group %i: score range: (%.1f, %.1f]" % (ui, upqvals[ui], upqvals[ui + 1])
+        df.loc[(df.Score > upqvals[ui]) & (df.Score <= upqvals[ui + 1]), "label"] = ui
+    return df.label
+
+# score groups
+fit_nn["labelfct"] = scoregroups
+
+fit_nn["nsample"] = 400000
+fit_nn["uniform"] = True
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True
 fit_nn["binary"] = False
+fit_nn["clean"] = True
+fit_nn["cnn"] = True
 fits.append(fit_nn.copy())

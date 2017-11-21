@@ -103,9 +103,19 @@ def FittingFriend(cfg):
             print "Retrieving relevant posts for training and testing."
             posts_train = GetDBPosts(qstrain.Id.values, conn)
             posts_test = GetDBPosts(qstest.Id.values, conn)
-            conn.close()
 
-            print "Warning! Posts are not cleaned yet! (stop-words, lemmatization etc)"
+            if fit.get("clean", False):
+                print "Cleaning posts..."
+
+                try:
+                    from spacy.lang.en import STOP_WORDS as STOPWORDS
+                except:
+                    from spacy.en import STOPWORDS
+
+                posts_train = [[w for w in p if p not in STOPWORDS] for p in posts_train]
+                posts_test = [[w for w in p if p not in STOPWORDS] for p in posts_test]
+            else:
+                print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
 
             print "Fitting tokenizer..."
             word_tokenizer = Tokenizer(fit["nfeatures"])
@@ -114,6 +124,8 @@ def FittingFriend(cfg):
             print "Tokenizing..."
             posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
             posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
+
+            embed()
 
             maxlen_posts = 600  # this catches roughly 95 % of all posts
             print "Padding to length %i..." % maxlen_posts
@@ -203,6 +215,12 @@ def FittingFriend(cfg):
 
         merged = concatenate(pools)
 
+        if fit.get("cnn", False):
+            print "Using CNN layer in network, please check options for filter and kernel size."
+            merged = Conv1D(250, 3, padding="valid",
+                            activation="relu", strides=1)(merged)
+            merged = GlobalMaxPooling1D()(merged)
+
         hidden_1 = Dense(256, activation="relu")(merged)
         hidden_1 = BatchNormalization()(hidden_1)
 
@@ -247,8 +265,8 @@ def FittingFriend(cfg):
 
         if fit.get("save", False):
 
-            model.save("./models/keras_full_%s.keras" % cfg["id"])
-            model.save_weights("./models/keras_weights_%s.keras" % cfg["id"])
+            model.save("./models/keras_full_%s.keras" % fit["id"])
+            model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
 
         embed()
 

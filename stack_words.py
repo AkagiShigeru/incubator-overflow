@@ -15,7 +15,7 @@ from stack_util import *
 import sqlite3
 
 try:
-    from spacy.en import STOP_WORDS as STOPWORDS
+    from spacy.lang.en import STOP_WORDS as STOPWORDS
 except:
     from spacy.en import STOPWORDS
 

@@ -78,8 +78,10 @@ def SelectUniformlyFromColumn(df, col, n=100000, randomize=True):
     uniques = df[col].unique()
     nu = n // len(uniques)
     navailable = df.groupby(col).apply(len)
+    print "Available overall grouped counts:", navailable
     if min(navailable) < nu:
-        print "Warning! There are not enough unique items of each category to sample, output df will have reduced size!"
+        print "Warning! There are not enough unique items of each category to sample, \
+               output df will have reduced size of %i per group!" % min(navailable)
         nu = min(navailable)
     new = None
     for unique in uniques:
@@ -88,6 +90,7 @@ def SelectUniformlyFromColumn(df, col, n=100000, randomize=True):
             new = sel
         else:
             new = new.append(sel)
+    print "Grouped counts after selection:", new.groupby(col).apply(len)
     if randomize:
         return shuffle(new)
     else:
