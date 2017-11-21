@@ -45,7 +45,7 @@ from keras.preprocessing.text import one_hot, Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Flatten
-from keras.layers import LSTM
+from keras.layers import LSTM, Conv1D
 from sklearn.model_selection import train_test_split
 from keras.models import Input, Model
 from keras.layers import Dense, Embedding, GlobalAveragePooling1D, concatenate, Activation
