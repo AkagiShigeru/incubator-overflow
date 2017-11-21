@@ -147,7 +147,7 @@ def PrepareData(cfg, verbose=False):
 
     # join in information about occurring words, probabilities etc
     qs = qs.join(features, how="inner", rsuffix="_r")
-    print "Shape of merged df", qs.shape
+    print "Shape of merged question df", qs.shape
 
     mask = qs.nwords > 5
     print "Selecting only questions with at least 5 meaningful words."

@@ -6,6 +6,7 @@
 #
 from stack_nlp import *
 from gensim.models import KeyedVectors
+from keras.utils import to_categorical
 
 
 def GetAnswerTimeQuantiles(df, ncat):
@@ -78,10 +79,17 @@ def FittingFriend(cfg):
             print "Selecting a sample of %i posts randomly." % nsample
             qssel = qs.sample(nsample)
 
+        if fit.get("binary", False):
+            nouts = 1
+        else:
+            nouts = to_categorical(qssel["label"]).shape[1]
+
         qstrain = qssel.iloc[:int(0.8 * qssel.shape[0])]
         qstest = qssel.iloc[int(0.8 * qssel.shape[0]):]
         print "Length of the training set:", len(qstrain)
         print "Length of the testing set:", len(qstest)
+
+        print "Output label dimensions:", nouts
 
         print "Opening embedding vectors"
         gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
@@ -160,7 +168,8 @@ def FittingFriend(cfg):
             posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
                                         weights=[weights_matrix])(posts_input)
             pools.append(GlobalAveragePooling1D()(posts_embedding))
-            outs.append(Dense(1, activation="sigmoid", name="posts_reg_out")(pools[-1]))
+            outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                              name="posts_reg_out")(pools[-1]))
             inps.append(posts_input)
 
         if fit.get("titles", True):
@@ -169,7 +178,8 @@ def FittingFriend(cfg):
             titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
                                          weights=[weights_matrix])(titles_input)
             pools.append(GlobalAveragePooling1D()(titles_embedding))
-            outs.append(Dense(1, activation="sigmoid", name="titles_reg_out")(pools[-1]))
+            outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                              name="titles_reg_out")(pools[-1]))
             inps.append(titles_input)
 
         meta_embedding_dims = 64
@@ -196,12 +206,12 @@ def FittingFriend(cfg):
         hidden_1 = Dense(256, activation="relu")(merged)
         hidden_1 = BatchNormalization()(hidden_1)
 
-        main_output = Dense(1, activation="sigmoid", name="main_out")(hidden_1)
+        main_output = Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                            name="main_out")(hidden_1)
 
         model = Model(inputs=inps, outputs=[main_output] + outs)
 
-        # model.compile(loss="binary_crossentropy",
-        model.compile(loss="categorical_crossentropy",
+        model.compile(loss="binary_crossentropy" if nouts == 1 else "categorical_crossentropy",
                       optimizer="adam",
                       metrics=["accuracy"],
                       loss_weights=[1, 0.2, 0.2])
@@ -211,22 +221,25 @@ def FittingFriend(cfg):
         plot_model(model, to_file='./plots/fit_%s.pdf' % fit["id"])
         plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fit["id"], show_shapes=True)
 
-        print "No-information baselines for each group:"
-        print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
-        print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
-        print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
+        if nouts == 1:
+            print "No-information baselines for each group:"
+            print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
+            print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
+            print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
 
         csv_logger = CSVLogger("./logging/training_%s.csv" % fit["id"])
 
         # from keras.callbacks import EarlyStopping
         # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
-        model.fit(inp_data, [to_categorical(qstrain["label"]) for _ in xrange(len(outs) + 1)],
+        convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
+
+        model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
                   batch_size=fit["nbatch"], epochs=fit["nepoch"],
                   validation_split=fit["nsplit"], callbacks=[csv_logger])
 
         a = model.evaluate(x=inp_test_data,
-                           y=[to_categorical(qstest["label"]) for _ in xrange(len(outs) + 1)])
+                           y=[convert_dims(qstest["label"]) for _ in xrange(len(outs) + 1)])
         print "Testing results:", a
 
         if fit.get("save", False):

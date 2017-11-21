@@ -49,9 +49,6 @@ fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
 fit_nn["nfeatures"] = 20000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
-# fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
-#                       "BodySize", "titlelen", "nwords", "ordermean",
-#                       "orderstd", "ratio", "weekday", "dayhour", "day"]
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
@@ -62,22 +59,23 @@ fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 
 
 def LocateFirst(l, tagdf, nt=10):
-    """ Returns index of most common element/tag in line of tags."""
-    for e in xrange(nt):
-        if tagdf.iloc[e].tags in l:
-            return e
-    else:
-        return nt
+    ins = np.isin(tagdf.iloc[:nt].tags.values, l)
+    first = np.where(ins == True)[0]
+    if len(first) > 0:
+        return first[0]
+    return nt
+
 # identifying first n labels
 fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
 
 # score > 0 label
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
 
-fit_nn["nsample"] = 400000
+fit_nn["nsample"] = 300000
 fit_nn["uniform"] = False
 fit_nn["nepoch"] = 20
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True
+fit_nn["binary"] = False
 fits.append(fit_nn.copy())
