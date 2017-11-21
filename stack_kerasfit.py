@@ -48,7 +48,7 @@ def FittingFriend(cfg):
     conn = data["dbconn"]
 
     for fit in cfg.fits:
-        print "\nWorking on fit of type %s with name %s" % (fit["type"], fit["name"])
+        print "\n>> Working on fit of type %s with name %s" % (fit["type"], fit["name"])
 
         assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
 
@@ -69,8 +69,6 @@ def FittingFriend(cfg):
         qs["label"] = fit["labelfct"](qs)
         nsample = fit.get("nsample", 100000)
 
-        embed()
-
         if fit.get("uniform", True):
 
             print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
@@ -89,6 +87,7 @@ def FittingFriend(cfg):
         gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=False)
 
         inp_data = []
+        inp_test_data = []
 
         word_tokenizer = False
         if fit.get("posts", True):
@@ -97,6 +96,8 @@ def FittingFriend(cfg):
             posts_train = GetDBPosts(qstrain.Id.values, conn)
             posts_test = GetDBPosts(qstest.Id.values, conn)
             conn.close()
+
+            print "Warning! Posts are not cleaned yet! (stop-words, lemmatization etc)"
 
             print "Fitting tokenizer..."
             word_tokenizer = Tokenizer(fit["nfeatures"])
