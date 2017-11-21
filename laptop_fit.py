@@ -73,7 +73,7 @@ fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x
 
 fit_nn["nsample"] = 300000
 fit_nn["uniform"] = False
-fit_nn["nepoch"] = 20
+fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True

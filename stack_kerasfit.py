@@ -234,9 +234,12 @@ def FittingFriend(cfg):
 
         convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
 
-        model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
-                  batch_size=fit["nbatch"], epochs=fit["nepoch"],
-                  validation_split=fit["nsplit"], callbacks=[csv_logger])
+        try:
+            model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
+                      batch_size=fit["nbatch"], epochs=fit["nepoch"],
+                      validation_split=fit["nsplit"], callbacks=[csv_logger])
+        except KeyboardInterrupt:
+            print "Stopping fit process, current result should be kept!"
 
         a = model.evaluate(x=inp_test_data,
                            y=[convert_dims(qstest["label"]) for _ in xrange(len(outs) + 1)])
