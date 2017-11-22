@@ -326,8 +326,13 @@ def FittingFriend(cfg):
 
         if fit.get("save", False):
 
+            import dill
+
             model.save("./models/keras_full_%s.keras" % fit["id"])
             model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
+
+            dill.dump(preds, open("./models/test_predictions_%s.dill" % fit["id"], "w"))
+            dill.dump(qstest["label"], open("./models/test_truths_%s.dill" % fit["id"], "w"))
 
         embed()
 

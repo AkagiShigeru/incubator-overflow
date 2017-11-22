@@ -46,7 +46,7 @@ fit_nn["name"] = "Predicting code topics / tags with word embeddings"
 fit_nn["embed_dim"] = 300
 fit_nn["embed_path"] = "/home/alex/data/glove.6B.%id.txt" % fit_nn["embed_dim"]
 fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
-fit_nn["nfeatures"] = 20000
+fit_nn["nfeatures"] = 50000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
@@ -66,7 +66,7 @@ def LocateFirst(l, tagdf, nt=10):
     return nt
 
 # identifying first n labels
-# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
+fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
 
 # score > 0 label
 # fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
@@ -83,16 +83,16 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     return df.label
 
 # score groups
-fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.9])
+# fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.9])
 
 fit_nn["nsample"] = 400000
-fit_nn["uniform"] = True
+fit_nn["uniform"] = False
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True
 fit_nn["binary"] = False
 fit_nn["clean"] = True
-fit_nn["cnn"] = True
+fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fits.append(fit_nn.copy())
