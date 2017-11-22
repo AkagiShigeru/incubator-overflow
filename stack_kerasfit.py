@@ -399,10 +399,10 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
     if labels is not None:
         if isinstance(labels, list):
             labels = [r"%s" % l for l in labels]
-        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet",
+        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="binary",
                          xticklabels=labels, yticklabels=labels[::-1], square=True)
     else:
-        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet", square=True)
+        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="binary", square=True)
 
     plt.savefig("./plots/heatmap_%s.pdf" % cfg["id"])
 
