@@ -367,6 +367,7 @@ def FittingFriend(cfg):
             PlotTrainingResult(train_log, fitcfg)
             PlotConfusionMatrix(test_truths, test_preds, fitcfg, labels=fitcfg.get("grouplabels", None))
             # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
+            PlotPredictionHistograms(test_truths, test_preds, fitcfg)
 
             if True:
                 # plt.clear()
@@ -375,6 +376,28 @@ def FittingFriend(cfg):
                 plt.ylabel("Number of tagged questions")
                 plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%d"))
                 plt.savefig("./plots/hist_mostcommontags.pdf")
+
+
+def PlotPredictionHistograms(truths, preds, cfg):
+
+    mpreds = preds[0]
+    truevals = np.unique(truths)
+
+    plt.figure()
+    plt.xlabel(r"Predicted probability to have a good score")
+    plt.ylabel(r"Number of predictions (normalized)")
+
+    for trueval in truevals:
+
+        mask = truths == trueval
+        goodpreds = mpreds.T[2]
+
+        plt.hist(goodpreds[mask], ls="-", color=g_carr[trueval + 1], lw=2, range=[0, 1], bins=100, histtype="step", density=True,
+                 label=cfg["grouplabels"][trueval])
+
+    plt.xlim(0., 0.5)
+    plt.legend(loc="best")
+    plt.savefig("./plots/pred_probs_vs_groups_%s.pdf" % cfg["id"])
 
 
 def PlotConfusionMatrix(truths, preds, cfg, labels=None):
