@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import gc
 
-# import seaborn as sns
+import seaborn as sns
 from pyik.mplext import ViolinPlot
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter

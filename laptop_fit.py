@@ -84,7 +84,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
 
 # score groups
 # fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.9])
-
+fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:20].tags.values) + ["other"]
 fit_nn["nsample"] = 400000
 fit_nn["uniform"] = False
 fit_nn["nepoch"] = 10

@@ -102,27 +102,35 @@ def TextCleansing(text, remove_stopwords=True, stem_words=False):
     return text
 
 
+def DataImportNeeded(cfg):
+    for fitcfg in cfg.fits:
+        if not fitcfg.get("from_cache", False):
+            return True
+    return False
+
+
 def FittingFriend(cfg):
 
-    print "Importing and preparing data..."
-    PrepareData(cfg)
-    data = cfg.data
-    qs = data["meta"]
-    conn = data["dbconn"]
+    if DataImportNeeded(cfg):
+        print "Importing and preparing data..."
+        PrepareData(cfg)
+        data = cfg.data
+        qs = data["meta"]
+        conn = data["dbconn"]
 
-    for fit in cfg.fits:
-        print "\n>> Working on fit of type %s with name %s" % (fit["type"], fit["name"])
+    for fitcfg in cfg.fits:
+        print "\n>> Working on fit of type %s with name %s" % (fitcfg["type"], fitcfg["name"])
 
-        if not fit.get("from_cache", False):
+        if not fitcfg.get("from_cache", False):
 
-            assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
+            assert "embed_path" in fitcfg, "Embedding input is not defined! This is currently required!"
 
-            if not os.path.exists(fit["embed_out"]):
-                ConvertToGensimFile(fit["embed_path"], fit["embed_out"])
+            if not os.path.exists(fitcfg["embed_out"]):
+                ConvertToGensimFile(fitcfg["embed_path"], fitcfg["embed_out"])
 
-            assert "labelfct" in fit, "Necessary to provide label function!"
+            assert "labelfct" in fitcfg, "Necessary to provide label function!"
 
-            if fit.get("create_common_tags", False):  # creating most common tags
+            if fitcfg.get("create_common_tags", False):  # creating most common tags
                 mostcommon = GetMostCommonTags(qs, n=1000)
                 mostcommon.to_csv("./infos/most_common_tags.csv")
                 a = pd.HDFStore("./infos/most_common_tags.hdf5", mode="w", complib="blosc", complevel=9)
@@ -131,10 +139,10 @@ def FittingFriend(cfg):
                 return 0.
 
             print "Calculating labels according to provided label function..."
-            qs["label"] = fit["labelfct"](qs)
-            nsample = fit.get("nsample", 100000)
+            qs["label"] = fitcfg["labelfct"](qs)
+            nsample = fitcfg.get("nsample", 100000)
 
-            if fit.get("uniform", True):
+            if fitcfg.get("uniform", True):
 
                 print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
                 qssel = SelectUniformlyFromColumn(qs, "label", n=nsample)
@@ -143,7 +151,7 @@ def FittingFriend(cfg):
                 print "Selecting a sample of %i posts randomly." % nsample
                 qssel = qs.sample(nsample)
 
-            if fit.get("binary", False):
+            if fitcfg.get("binary", False):
                 nouts = 1
             else:
                 nouts = to_categorical(qssel["label"]).shape[1]
@@ -156,19 +164,19 @@ def FittingFriend(cfg):
             print "Output label dimensions:", nouts
 
             print "Opening embedding vectors"
-            gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=not fit.get("train_embeddings", True))
+            gmod = KeyedVectors.load_word2vec_format(fitcfg["embed_out"], binary=not fitcfg.get("train_embeddings", True))
 
             inp_data = []
             inp_test_data = []
 
             word_tokenizer = False
-            if fit.get("posts", True):
+            if fitcfg.get("posts", True):
 
                 print "Retrieving relevant posts for training and testing."
                 posts_train = GetDBPosts(qstrain.Id.values, conn)
                 posts_test = GetDBPosts(qstest.Id.values, conn)
 
-                if fit.get("clean", False):
+                if fitcfg.get("clean", False):
                     print "Cleaning posts..."
                     posts_train = [TextCleansing(p) for p in posts_train]
                     posts_test = [TextCleansing(p) for p in posts_test]
@@ -176,7 +184,7 @@ def FittingFriend(cfg):
                     print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
 
                 print "Fitting tokenizer..."
-                word_tokenizer = Tokenizer(fit["nfeatures"])
+                word_tokenizer = Tokenizer(fitcfg["nfeatures"])
                 word_tokenizer.fit_on_texts(posts_train)
 
                 print "Tokenizing..."
@@ -194,7 +202,7 @@ def FittingFriend(cfg):
                 inp_data.append(posts_train_tf)
                 inp_test_data.append(posts_test_tf)
 
-            if fit.get("titles", True):
+            if fitcfg.get("titles", True):
                 print "Retrieving relevant titles for training and testing."
                 titles_train = np.squeeze(qstrain.Title.values)
                 titles_test = np.squeeze(qstest.Title.values)
@@ -202,7 +210,7 @@ def FittingFriend(cfg):
                 if not word_tokenizer:
                     print "Building tokenizer on titles."
                     word_tokenizer = Tokenizer(fit["nfeatures"])
-                    word_tokenizer.fit_on_texts(titles_train)
+                    word_tokenizer.fitcfg_on_texts(titles_train)
 
                 titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
                 titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
@@ -215,48 +223,48 @@ def FittingFriend(cfg):
                 inp_test_data.append(titles_test_tf)
 
             # setting up weights matrix for embedding in keras
-            weights_matrix = np.zeros((fit["nfeatures"] + 1, fit["embed_dim"]))
+            weights_matrix = np.zeros((fitcfg["nfeatures"] + 1, fitcfg["embed_dim"]))
             for word, i in word_tokenizer.word_index.items():
 
-                if i > fit["nfeatures"]:
+                if i > fitcfg["nfeatures"]:
                     continue
                 try:
                     embedding_vector = gmod.word_vec(word)
                     if embedding_vector is not None:
                         weights_matrix[i] = embedding_vector
                 except:
-                    weights_matrix[i] = np.zeros(fit["embed_dim"])
+                    weights_matrix[i] = np.zeros(fitcfg["embed_dim"])
 
             pools = []
             outs = []
             inps = []
 
-            if fit.get("posts", True):
+            if fitcfg.get("posts", True):
 
                 posts_input = Input(shape=(maxlen_posts,), name="posts_input")
-                posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                posts_embedding = Embedding(fitcfg["nfeatures"] + 1, fitcfg["embed_dim"],
                                             weights=[weights_matrix],
                                             input_length=maxlen_posts,
-                                            trainable=fit.get("train_embeddings", True))(posts_input)
+                                            trainable=fitcfg.get("train_embeddings", True))(posts_input)
                 pools.append(GlobalAveragePooling1D()(posts_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="posts_reg_out")(pools[-1]))
                 inps.append(posts_input)
 
-            if fit.get("titles", True):
+            if fitcfg.get("titles", True):
 
                 titles_input = Input(shape=(maxlen_titles,), name="titles_input")
-                titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                titles_embedding = Embedding(fitcfg["nfeatures"] + 1, fitcfg["embed_dim"],
                                              weights=[weights_matrix],
                                              input_length=maxlen_titles,
-                                             trainable=fit.get("train_embeddings", True))(titles_input)
+                                             trainable=fitcfg.get("train_embeddings", True))(titles_input)
                 pools.append(GlobalAveragePooling1D()(titles_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="titles_reg_out")(pools[-1]))
                 inps.append(titles_input)
 
             meta_embedding_dims = 64
-            for feat in fit.get("cat_features", []):
+            for feat in fitcfg.get("cat_features", []):
 
                 feat_input = Input(shape=(1,), name="%s_input_cat" % feat)
                 feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
@@ -266,7 +274,7 @@ def FittingFriend(cfg):
                 inp_data.append(qstrain[feat])
                 inp_test_data.append(qstest[feat])
 
-            for feat in fit.get("features", []):
+            for feat in fitcfg.get("features", []):
                 feat_input = Input(shape=(1,), name="%s_input" % feat)
                 pools.append(feat_input)
                 inps.append(feat_input)
@@ -276,13 +284,13 @@ def FittingFriend(cfg):
 
             merged = concatenate(pools)
 
-            if fit.get("cnn", False):
+            if fitcfg.get("cnn", False):
                 print "Using CNN layer in network, please check options for filter and kernel size."
                 merged = Conv1D(250, 3, padding="valid",
                                 activation="relu", strides=1)(merged)
                 merged = GlobalMaxPooling1D()(merged)
 
-            # if fit.get("LSTM", False):
+            # if fitcfg.get("LSTM", False):
                 # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
                 # model.add(Dropout(0.3))
 
@@ -301,16 +309,16 @@ def FittingFriend(cfg):
 
             print model.summary()
 
-            plot_model(model, to_file='./plots/fit_%s.pdf' % fit["id"])
-            plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fit["id"], show_shapes=True)
+            plot_model(model, to_file='./plots/fit_%s.pdf' % fitcfg["id"])
+            plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fitcfg["id"], show_shapes=True)
 
             if nouts == 1:
                 print "No-information baselines for each group:"
                 print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
                 print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
-                print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
+                print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fitcfg["nsplit"]))])
 
-            csv_logger = CSVLogger("./logging/training_%s.csv" % fit["id"])
+            csv_logger = CSVLogger("./logging/training_%s.csv" % fitcfg["id"])
 
             # from keras.callbacks import EarlyStopping
             # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
@@ -318,8 +326,8 @@ def FittingFriend(cfg):
             convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
             try:
                 model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
-                          batch_size=fit["nbatch"], epochs=fit["nepoch"],
-                          validation_split=fit["nsplit"], callbacks=[csv_logger])
+                          batch_size=fitcfg["nbatch"], epochs=fitcfg["nepoch"],
+                          validation_split=fitcfg["nsplit"], callbacks=[csv_logger])
             except KeyboardInterrupt:
                 print "Stopping fit process, current result should be kept!"
 
@@ -330,28 +338,82 @@ def FittingFriend(cfg):
             test_truths = qstest["label"]
             test_preds = model.predict(inp_test_data)
 
-            if fit.get("save", False):
+            if fitcfg.get("save", False):
 
-                model.save("./models/keras_full_%s.keras" % fit["id"])
-                model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
+                model.save("./models/keras_full_%s.keras" % fitcfg["id"])
+                model.save_weights("./models/keras_weights_%s.keras" % fitcfg["id"])
 
-                dill.dump(test_preds, open("./models/test_predictions_%s.dill" % fit["id"], "w"))
-                dill.dump(test_truths, open("./models/test_truths_%s.dill" % fit["id"], "w"))
+                dill.dump(test_preds, open("./models/test_predictions_%s.dill" % fitcfg["id"], "w"))
+                dill.dump(test_truths, open("./models/test_truths_%s.dill" % fitcfg["id"], "w"))
+                dill.dump(qstest, open("./models/test_df_%s.dill" % fitcfg["id"], "w"))
 
         else:
-            print "using cached results!"
+            print "Using cached results!"
             from keras.models import load_model
 
-            model = load_model("./models/keras_full_%s.keras" % fit["id"])
-            test_truths = dill.load(open("./models/test_truths_%s.dill" % fit["id"], "r"))
-            test_preds = dill.load(open("./models/test_preds_%s.dill" % fit["id"], "r"))
+            train_log = pd.read_csv("./logging/training_%s.csv" % fitcfg["id"])
 
-        embed()
+            model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
+            test_truths = dill.load(open("./models/test_truths_%s.dill" % fitcfg["id"], "r"))
+            test_preds = dill.load(open("./models/test_preds_%s.dill" % fitcfg["id"], "r"))
+            # test_df = dill.load(open("./models/test_df_%s.dill" % fitcfg["id"], "r"))
 
-        if fit.get("plots", True):
+        # embed()
+
+        if fitcfg.get("plots", True):
 
             print "Making a few plots..."
-            pass
+            PlotTrainingResult(train_log, fitcfg)
+            PlotConfusionMatrix(test_truths, test_preds[0], fitcfg, labels=fitcfg.get("grouplabels", None))
+            # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
+
+
+def PlotConfusionMatrix(truths, preds, cfg, labels=None):
+
+    import matplotlib.cm as cm
+
+    preds_bin = np.argmax(preds, axis=1)
+
+    comp = pd.DataFrame({"truth": truths, "prediction": preds_bin})
+    comp = comp.groupby(["truth", "prediction"]).apply(len)
+    comp = comp.unstack(level=-1)
+
+    # normalization
+    comp = comp * 1. / comp.apply(np.sum, axis=1)
+    comp = comp.T
+    comp.sort_index(ascending=False, inplace=True)
+    comp[np.isnan(comp)] = 0
+    # print comp
+
+    plt.figure(figsize=(15, 12))
+    plt.title(r"$P(\mathrm{prediction}\vert\mathrm{truth})$")
+
+    if labels is not None:
+        if isinstance(labels, list):
+            labels = [r"%s" % l for l in labels]
+        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet",
+                         xticklabels=labels, yticklabels=labels, square=True)
+    else:
+        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet", square=True)
+
+    plt.savefig("./plots/heatmap_%s.pdf" % cfg["id"])
+
+
+def PlotTrainingResult(logdf, cfg):
+
+    fig = plt.figure()
+    sfig = fig.add_axes([0.15, 0.11, 0.845, 0.78])
+
+    sfig.set_xlabel(r"Epoch")
+    sfig.set_ylabel(r"Accuracy")
+
+    sfig.plot(logdf.epoch + 1, logdf.main_out_acc, ls="-", marker="o", color="k", label="Training accuracy")
+    sfig.plot(logdf.epoch + 1, logdf.val_main_out_acc, ls="-", marker="s", color="r", label="Testing accuracy")
+
+    plt.legend(loc="upper left")
+    plt.ylim(0., 1.)
+
+    plt.savefig("./plots/training_results_%s.pdf" % cfg["id"])
 
 
 if __name__ == "__main__":
