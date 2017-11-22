@@ -378,12 +378,12 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
     comp = comp.groupby(["truth", "prediction"]).apply(len)
     comp = comp.unstack(level=-1)
 
+    comp[np.isnan(comp)] = 0
+
     # normalization
-    comp = comp * 1. / comp.apply(np.sum, axis=1)
+    comp = comp.div(comp.sum(axis=1), axis=0)
     comp = comp.T
     comp.sort_index(ascending=False, inplace=True)
-    comp[np.isnan(comp)] = 0
-    # print comp
 
     plt.figure(figsize=(15, 12))
     plt.title(r"$P(\mathrm{prediction}\vert\mathrm{truth})$")
@@ -392,7 +392,7 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
         if isinstance(labels, list):
             labels = [r"%s" % l for l in labels]
         ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet",
-                         xticklabels=labels, yticklabels=labels, square=True)
+                         xticklabels=labels, yticklabels=labels[::-1], square=True)
     else:
         ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="jet", square=True)
 
