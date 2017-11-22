@@ -367,6 +367,14 @@ def FittingFriend(cfg):
             PlotConfusionMatrix(test_truths, test_preds[0], fitcfg, labels=fitcfg.get("grouplabels", None))
             # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
 
+            if True:
+                # plt.clear()
+                plt.figure()
+                cfg.mostcommon_tags.set_index("tags").head(20).plot.bar(ax=plt.gca())
+                plt.ylabel("Number of tagged questions")
+                plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%d"))
+                plt.savefig("./plots/hist_mostcommontags.pdf")
+
 
 def PlotConfusionMatrix(truths, preds, cfg, labels=None):
 
