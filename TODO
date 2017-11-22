@@ -4,3 +4,5 @@ stack_kerasfit
 --------------
 
 - parallelization of tokenization, cleaning, padding and other steps -> much improved performance
+- correct implementation of optional CNN and RNN / LSTM for main output, after word vector embedding
+- test different dropout and batch normalization settings

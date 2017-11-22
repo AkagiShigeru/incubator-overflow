@@ -295,6 +295,7 @@ def FittingFriend(cfg):
                 # model.add(Dropout(0.3))
 
             hidden_1 = Dense(256, activation="relu")(merged)
+            # hidden_1 = Dropout(0.2)(hidden_1)
             hidden_1 = BatchNormalization()(hidden_1)
 
             main_output = Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
@@ -351,8 +352,6 @@ def FittingFriend(cfg):
             print "Using cached results!"
             from keras.models import load_model
 
-            train_log = pd.read_csv("./logging/training_%s.csv" % fitcfg["id"])
-
             model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
             test_truths = dill.load(open("./models/test_truths_%s.dill" % fitcfg["id"], "r"))
             test_preds = dill.load(open("./models/test_preds_%s.dill" % fitcfg["id"], "r"))
@@ -362,9 +361,11 @@ def FittingFriend(cfg):
 
         if fitcfg.get("plots", True):
 
+            train_log = pd.read_csv("./logging/training_%s.csv" % fitcfg["id"])
+
             print "Making a few plots..."
             PlotTrainingResult(train_log, fitcfg)
-            PlotConfusionMatrix(test_truths, test_preds[0], fitcfg, labels=fitcfg.get("grouplabels", None))
+            PlotConfusionMatrix(test_truths, test_preds, fitcfg, labels=fitcfg.get("grouplabels", None))
             # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
 
             if True:
@@ -380,8 +381,8 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
 
     import matplotlib.cm as cm
 
-    preds_bin = np.argmax(preds, axis=1)
-
+    # one way of calculating confusion matrix
+    preds_bin = np.argmax(preds[0], axis=1)
     comp = pd.DataFrame({"truth": truths, "prediction": preds_bin})
     comp = comp.groupby(["truth", "prediction"]).apply(len)
     comp = comp.unstack(level=-1)
