@@ -98,7 +98,7 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-# fits.append(fit_nn.copy())
+fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -158,7 +158,7 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -218,4 +218,4 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())

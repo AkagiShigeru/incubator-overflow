@@ -404,6 +404,9 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
 
     import matplotlib.cm as cm
 
+    if isinstance(labels, list):
+        labels = [r"%s" % l for l in labels]
+
     # one way of calculating confusion matrix
     preds_bin = np.argmax(preds[0], axis=1)
     comp = pd.DataFrame({"truth": truths, "prediction": preds_bin})
@@ -421,14 +424,37 @@ def PlotConfusionMatrix(truths, preds, cfg, labels=None):
     plt.title(r"$P(\mathrm{prediction}\vert\mathrm{truth})$")
 
     if labels is not None:
-        if isinstance(labels, list):
-            labels = [r"%s" % l for l in labels]
         ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="binary",
-                         xticklabels=labels, yticklabels=labels[::-1], square=True)
+                         xticklabels=labels, yticklabels=labels[::-1], square=True,
+                         axes=plt.gca())
     else:
-        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="binary", square=True)
+        ax = sns.heatmap(comp, annot=False, linewidths=0.5, cmap="binary", square=True,
+                         axes=plt.gca())
 
     plt.savefig("./plots/heatmap_%s.pdf" % cfg["id"])
+
+    # better/alternative way, not argmaxing but averaging actual probabilities
+    t = pd.DataFrame(preds[0])
+    t["truth"] = truths.values
+    comp2 = t.groupby("truth").apply(np.mean)
+    del comp2["truth"]
+    comp2 = comp2.T
+    comp2.sort_index(ascending=False, inplace=True)
+
+    plt.figure(figsize=(15, 12))
+    plt.title(r"$P(\mathrm{prediction}\vert\mathrm{truth})$")
+
+    if labels is not None:
+        ax = sns.heatmap(comp2, annot=False, linewidths=0.5, cmap="binary",
+                         xticklabels=labels, yticklabels=labels[::-1], square=True,
+                         axes=plt.gca())
+    else:
+        ax = sns.heatmap(comp2, annot=False, linewidths=0.5, cmap="binary", square=True,
+                         axes=plt.gca())
+
+    plt.ylabel("prediction")
+
+    plt.savefig("./plots/heatmap_exact_%s.pdf" % cfg["id"])
 
 
 def PlotTrainingResult(logdf, cfg):
