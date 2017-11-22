@@ -390,12 +390,12 @@ def PlotPredictionHistograms(truths, preds, cfg):
     for trueval in truevals:
 
         mask = truths == trueval
-        goodpreds = mpreds.T[2]
+        goodpreds = mpreds.T[len(truevals) - 1]
 
         plt.hist(goodpreds[mask], ls="-", color=g_carr[trueval + 1], lw=2, range=[0, 1], bins=100, histtype="step", density=True,
                  label=cfg["grouplabels"][trueval])
 
-    plt.xlim(0., 0.5)
+    plt.xlim(0., 1.)
     plt.legend(loc="best")
     plt.savefig("./plots/pred_probs_vs_groups_%s.pdf" % cfg["id"])
 
