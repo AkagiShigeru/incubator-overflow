@@ -344,7 +344,7 @@ def FittingFriend(cfg):
                 model.save("./models/keras_full_%s.keras" % fitcfg["id"])
                 model.save_weights("./models/keras_weights_%s.keras" % fitcfg["id"])
 
-                dill.dump(test_preds, open("./models/test_predictions_%s.dill" % fitcfg["id"], "w"))
+                dill.dump(test_preds, open("./models/test_preds_%s.dill" % fitcfg["id"], "w"))
                 dill.dump(test_truths, open("./models/test_truths_%s.dill" % fitcfg["id"], "w"))
                 dill.dump(qstest, open("./models/test_df_%s.dill" % fitcfg["id"], "w"))
 
