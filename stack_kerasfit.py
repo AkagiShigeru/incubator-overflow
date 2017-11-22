@@ -7,6 +7,7 @@
 from stack_nlp import *
 from gensim.models import KeyedVectors
 from keras.utils import to_categorical
+import dill
 
 
 def GetAnswerTimeQuantiles(df, ncat):
@@ -112,233 +113,245 @@ def FittingFriend(cfg):
     for fit in cfg.fits:
         print "\n>> Working on fit of type %s with name %s" % (fit["type"], fit["name"])
 
-        assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
+        if not fit.get("from_cache", False):
 
-        if not os.path.exists(fit["embed_out"]):
-            ConvertToGensimFile(fit["embed_path"], fit["embed_out"])
+            assert "embed_path" in fit, "Embedding input is not defined! This is currently required!"
 
-        assert "labelfct" in fit, "Necessary to provide label function!"
+            if not os.path.exists(fit["embed_out"]):
+                ConvertToGensimFile(fit["embed_path"], fit["embed_out"])
 
-        if fit.get("create_common_tags", False):  # creating most common tags
-            mostcommon = GetMostCommonTags(qs, n=1000)
-            mostcommon.to_csv("./infos/most_common_tags.csv")
-            a = pd.HDFStore("./infos/most_common_tags.hdf5", mode="w", complib="blosc", complevel=9)
-            a.put("tags", mostcommon)
-            a.close()
-            return 0.
+            assert "labelfct" in fit, "Necessary to provide label function!"
 
-        print "Calculating labels according to provided label function..."
-        qs["label"] = fit["labelfct"](qs)
-        nsample = fit.get("nsample", 100000)
+            if fit.get("create_common_tags", False):  # creating most common tags
+                mostcommon = GetMostCommonTags(qs, n=1000)
+                mostcommon.to_csv("./infos/most_common_tags.csv")
+                a = pd.HDFStore("./infos/most_common_tags.hdf5", mode="w", complib="blosc", complevel=9)
+                a.put("tags", mostcommon)
+                a.close()
+                return 0.
 
-        if fit.get("uniform", True):
+            print "Calculating labels according to provided label function..."
+            qs["label"] = fit["labelfct"](qs)
+            nsample = fit.get("nsample", 100000)
 
-            print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
-            qssel = SelectUniformlyFromColumn(qs, "label", n=nsample)
+            if fit.get("uniform", True):
 
-        else:
-            print "Selecting a sample of %i posts randomly." % nsample
-            qssel = qs.sample(nsample)
+                print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
+                qssel = SelectUniformlyFromColumn(qs, "label", n=nsample)
 
-        if fit.get("binary", False):
-            nouts = 1
-        else:
-            nouts = to_categorical(qssel["label"]).shape[1]
-
-        qstrain = qssel.iloc[:int(0.8 * qssel.shape[0])]
-        qstest = qssel.iloc[int(0.8 * qssel.shape[0]):]
-        print "Length of the training set:", len(qstrain)
-        print "Length of the testing set:", len(qstest)
-
-        print "Output label dimensions:", nouts
-
-        print "Opening embedding vectors"
-        gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=not fit.get("train_embeddings", True))
-
-        inp_data = []
-        inp_test_data = []
-
-        word_tokenizer = False
-        if fit.get("posts", True):
-
-            print "Retrieving relevant posts for training and testing."
-            posts_train = GetDBPosts(qstrain.Id.values, conn)
-            posts_test = GetDBPosts(qstest.Id.values, conn)
-
-            if fit.get("clean", False):
-                print "Cleaning posts..."
-                posts_train = [TextCleansing(p) for p in posts_train]
-                posts_test = [TextCleansing(p) for p in posts_test]
             else:
-                print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
+                print "Selecting a sample of %i posts randomly." % nsample
+                qssel = qs.sample(nsample)
 
-            print "Fitting tokenizer..."
-            word_tokenizer = Tokenizer(fit["nfeatures"])
-            word_tokenizer.fit_on_texts(posts_train)
+            if fit.get("binary", False):
+                nouts = 1
+            else:
+                nouts = to_categorical(qssel["label"]).shape[1]
 
-            print "Tokenizing..."
-            posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
-            posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
+            qstrain = qssel.iloc[:int(0.8 * qssel.shape[0])]
+            qstest = qssel.iloc[int(0.8 * qssel.shape[0]):]
+            print "Length of the training set:", len(qstrain)
+            print "Length of the testing set:", len(qstest)
 
-            # maxlen_posts = 600  # this catches roughly 95 % of all posts without text cleaning
-            maxlen_posts = 500  # this catches roughly 95 % of all posts with text cleaning
-            print "Padding to length %i..." % maxlen_posts
-            posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
-                                           padding="post", truncating="post")
-            posts_test_tf = pad_sequences(posts_test_tf, maxlen=maxlen_posts,
-                                          padding="post", truncating="post")
+            print "Output label dimensions:", nouts
 
-            inp_data.append(posts_train_tf)
-            inp_test_data.append(posts_test_tf)
+            print "Opening embedding vectors"
+            gmod = KeyedVectors.load_word2vec_format(fit["embed_out"], binary=not fit.get("train_embeddings", True))
 
-        if fit.get("titles", True):
-            print "Retrieving relevant titles for training and testing."
-            titles_train = np.squeeze(qstrain.Title.values)
-            titles_test = np.squeeze(qstest.Title.values)
+            inp_data = []
+            inp_test_data = []
 
-            if not word_tokenizer:
-                print "Building tokenizer on titles."
+            word_tokenizer = False
+            if fit.get("posts", True):
+
+                print "Retrieving relevant posts for training and testing."
+                posts_train = GetDBPosts(qstrain.Id.values, conn)
+                posts_test = GetDBPosts(qstest.Id.values, conn)
+
+                if fit.get("clean", False):
+                    print "Cleaning posts..."
+                    posts_train = [TextCleansing(p) for p in posts_train]
+                    posts_test = [TextCleansing(p) for p in posts_test]
+                else:
+                    print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
+
+                print "Fitting tokenizer..."
                 word_tokenizer = Tokenizer(fit["nfeatures"])
-                word_tokenizer.fit_on_texts(titles_train)
+                word_tokenizer.fit_on_texts(posts_train)
 
-            titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
-            titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
+                print "Tokenizing..."
+                posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
+                posts_test_tf = word_tokenizer.texts_to_sequences(posts_test)
 
-            maxlen_titles = 30  # catches all sentences in training set checked on 17/11
-            titles_train_tf = pad_sequences(titles_train_tf, maxlen=maxlen_titles, padding="post", truncating="post")
-            titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
+                # maxlen_posts = 600  # this catches roughly 95 % of all posts without text cleaning
+                maxlen_posts = 500  # this catches roughly 95 % of all posts with text cleaning
+                print "Padding to length %i..." % maxlen_posts
+                posts_train_tf = pad_sequences(posts_train_tf, maxlen=maxlen_posts,
+                                               padding="post", truncating="post")
+                posts_test_tf = pad_sequences(posts_test_tf, maxlen=maxlen_posts,
+                                              padding="post", truncating="post")
 
-            inp_data.append(titles_train_tf)
-            inp_test_data.append(titles_test_tf)
+                inp_data.append(posts_train_tf)
+                inp_test_data.append(posts_test_tf)
 
-        # setting up weights matrix for embedding in keras
-        weights_matrix = np.zeros((fit["nfeatures"] + 1, fit["embed_dim"]))
-        for word, i in word_tokenizer.word_index.items():
+            if fit.get("titles", True):
+                print "Retrieving relevant titles for training and testing."
+                titles_train = np.squeeze(qstrain.Title.values)
+                titles_test = np.squeeze(qstest.Title.values)
 
-            if i > fit["nfeatures"]:
-                continue
+                if not word_tokenizer:
+                    print "Building tokenizer on titles."
+                    word_tokenizer = Tokenizer(fit["nfeatures"])
+                    word_tokenizer.fit_on_texts(titles_train)
+
+                titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
+                titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)
+
+                maxlen_titles = 30  # catches all sentences in training set checked on 17/11
+                titles_train_tf = pad_sequences(titles_train_tf, maxlen=maxlen_titles, padding="post", truncating="post")
+                titles_test_tf = pad_sequences(titles_test_tf, maxlen=maxlen_titles, padding="post", truncating="post")
+
+                inp_data.append(titles_train_tf)
+                inp_test_data.append(titles_test_tf)
+
+            # setting up weights matrix for embedding in keras
+            weights_matrix = np.zeros((fit["nfeatures"] + 1, fit["embed_dim"]))
+            for word, i in word_tokenizer.word_index.items():
+
+                if i > fit["nfeatures"]:
+                    continue
+                try:
+                    embedding_vector = gmod.word_vec(word)
+                    if embedding_vector is not None:
+                        weights_matrix[i] = embedding_vector
+                except:
+                    weights_matrix[i] = np.zeros(fit["embed_dim"])
+
+            pools = []
+            outs = []
+            inps = []
+
+            if fit.get("posts", True):
+
+                posts_input = Input(shape=(maxlen_posts,), name="posts_input")
+                posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                                            weights=[weights_matrix],
+                                            input_length=maxlen_posts,
+                                            trainable=fit.get("train_embeddings", True))(posts_input)
+                pools.append(GlobalAveragePooling1D()(posts_embedding))
+                outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                                  name="posts_reg_out")(pools[-1]))
+                inps.append(posts_input)
+
+            if fit.get("titles", True):
+
+                titles_input = Input(shape=(maxlen_titles,), name="titles_input")
+                titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
+                                             weights=[weights_matrix],
+                                             input_length=maxlen_titles,
+                                             trainable=fit.get("train_embeddings", True))(titles_input)
+                pools.append(GlobalAveragePooling1D()(titles_embedding))
+                outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                                  name="titles_reg_out")(pools[-1]))
+                inps.append(titles_input)
+
+            meta_embedding_dims = 64
+            for feat in fit.get("cat_features", []):
+
+                feat_input = Input(shape=(1,), name="%s_input_cat" % feat)
+                feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
+                pools.append(Reshape((meta_embedding_dims,))(feat_embedding))
+                inps.append(feat_input)
+
+                inp_data.append(qstrain[feat])
+                inp_test_data.append(qstest[feat])
+
+            for feat in fit.get("features", []):
+                feat_input = Input(shape=(1,), name="%s_input" % feat)
+                pools.append(feat_input)
+                inps.append(feat_input)
+
+                inp_data.append(qstrain[feat])
+                inp_test_data.append(qstest[feat])
+
+            merged = concatenate(pools)
+
+            if fit.get("cnn", False):
+                print "Using CNN layer in network, please check options for filter and kernel size."
+                merged = Conv1D(250, 3, padding="valid",
+                                activation="relu", strides=1)(merged)
+                merged = GlobalMaxPooling1D()(merged)
+
+            # if fit.get("LSTM", False):
+                # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
+                # model.add(Dropout(0.3))
+
+            hidden_1 = Dense(256, activation="relu")(merged)
+            hidden_1 = BatchNormalization()(hidden_1)
+
+            main_output = Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
+                                name="main_out")(hidden_1)
+
+            model = Model(inputs=inps, outputs=[main_output] + outs)
+
+            model.compile(loss="binary_crossentropy" if nouts == 1 else "categorical_crossentropy",
+                          optimizer="adam",
+                          metrics=["accuracy"],
+                          loss_weights=[1, 0.2, 0.2])
+
+            print model.summary()
+
+            plot_model(model, to_file='./plots/fit_%s.pdf' % fit["id"])
+            plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fit["id"], show_shapes=True)
+
+            if nouts == 1:
+                print "No-information baselines for each group:"
+                print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
+                print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
+                print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
+
+            csv_logger = CSVLogger("./logging/training_%s.csv" % fit["id"])
+
+            # from keras.callbacks import EarlyStopping
+            # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
+
+            convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
             try:
-                embedding_vector = gmod.word_vec(word)
-                if embedding_vector is not None:
-                    weights_matrix[i] = embedding_vector
-            except:
-                weights_matrix[i] = np.zeros(fit["embed_dim"])
+                model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
+                          batch_size=fit["nbatch"], epochs=fit["nepoch"],
+                          validation_split=fit["nsplit"], callbacks=[csv_logger])
+            except KeyboardInterrupt:
+                print "Stopping fit process, current result should be kept!"
 
-        pools = []
-        outs = []
-        inps = []
+            a = model.evaluate(x=inp_test_data,
+                               y=[convert_dims(qstest["label"]) for _ in xrange(len(outs) + 1)])
+            print "Testing results:", a
 
-        if fit.get("posts", True):
+            test_truths = qstest["label"]
+            test_preds = model.predict(inp_test_data)
 
-            posts_input = Input(shape=(maxlen_posts,), name="posts_input")
-            posts_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
-                                        weights=[weights_matrix],
-                                        input_length=maxlen_posts,
-                                        trainable=fit.get("train_embeddings", True))(posts_input)
-            pools.append(GlobalAveragePooling1D()(posts_embedding))
-            outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
-                              name="posts_reg_out")(pools[-1]))
-            inps.append(posts_input)
+            if fit.get("save", False):
 
-        if fit.get("titles", True):
+                model.save("./models/keras_full_%s.keras" % fit["id"])
+                model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
 
-            titles_input = Input(shape=(maxlen_titles,), name="titles_input")
-            titles_embedding = Embedding(fit["nfeatures"] + 1, fit["embed_dim"],
-                                         weights=[weights_matrix],
-                                         input_length=maxlen_titles,
-                                         trainable=fit.get("train_embeddings", True))(titles_input)
-            pools.append(GlobalAveragePooling1D()(titles_embedding))
-            outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
-                              name="titles_reg_out")(pools[-1]))
-            inps.append(titles_input)
+                dill.dump(test_preds, open("./models/test_predictions_%s.dill" % fit["id"], "w"))
+                dill.dump(test_truths, open("./models/test_truths_%s.dill" % fit["id"], "w"))
 
-        meta_embedding_dims = 64
-        for feat in fit.get("cat_features", []):
+        else:
+            print "using cached results!"
+            from keras.models import load_model
 
-            feat_input = Input(shape=(1,), name="%s_input_cat" % feat)
-            feat_embedding = Embedding(max(qssel[feat]) + 1, meta_embedding_dims)(feat_input)
-            pools.append(Reshape((meta_embedding_dims,))(feat_embedding))
-            inps.append(feat_input)
-
-            inp_data.append(qstrain[feat])
-            inp_test_data.append(qstest[feat])
-
-        for feat in fit.get("features", []):
-            feat_input = Input(shape=(1,), name="%s_input" % feat)
-            pools.append(feat_input)
-            inps.append(feat_input)
-
-            inp_data.append(qstrain[feat])
-            inp_test_data.append(qstest[feat])
-
-        merged = concatenate(pools)
-
-        if fit.get("cnn", False):
-            print "Using CNN layer in network, please check options for filter and kernel size."
-            merged = Conv1D(250, 3, padding="valid",
-                            activation="relu", strides=1)(merged)
-            merged = GlobalMaxPooling1D()(merged)
-
-        # if fit.get("LSTM", False):
-            # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
-            # model.add(Dropout(0.3))
-
-        hidden_1 = Dense(256, activation="relu")(merged)
-        hidden_1 = BatchNormalization()(hidden_1)
-
-        main_output = Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
-                            name="main_out")(hidden_1)
-
-        model = Model(inputs=inps, outputs=[main_output] + outs)
-
-        model.compile(loss="binary_crossentropy" if nouts == 1 else "categorical_crossentropy",
-                      optimizer="adam",
-                      metrics=["accuracy"],
-                      loss_weights=[1, 0.2, 0.2])
-
-        print model.summary()
-
-        plot_model(model, to_file='./plots/fit_%s.pdf' % fit["id"])
-        plot_model(model, to_file='./plots/fit_%s_shapes.pdf' % fit["id"], show_shapes=True)
-
-        if nouts == 1:
-            print "No-information baselines for each group:"
-            print "Training:", 1 - np.sum(qstrain["label"]) * 1. / qstrain["label"].shape[0]
-            print "Testing:", 1 - np.sum(qstest["label"]) * 1. / qstest["label"].shape[0]
-            print "Validation:", 1 - np.mean(qstrain["label"][:(int(posts_train_tf.shape[0] * fit["nsplit"]))])
-
-        csv_logger = CSVLogger("./logging/training_%s.csv" % fit["id"])
-
-        # from keras.callbacks import EarlyStopping
-        # early_stop = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
-
-        convert_dims = lambda x: to_categorical(x, num_classes=nouts) if nouts > 1 else x
-        try:
-            model.fit(inp_data, [convert_dims(qstrain["label"]) for _ in xrange(len(outs) + 1)],
-                      batch_size=fit["nbatch"], epochs=fit["nepoch"],
-                      validation_split=fit["nsplit"], callbacks=[csv_logger])
-        except KeyboardInterrupt:
-            print "Stopping fit process, current result should be kept!"
-
-        a = model.evaluate(x=inp_test_data,
-                           y=[convert_dims(qstest["label"]) for _ in xrange(len(outs) + 1)])
-        print "Testing results:", a
-
-        if fit.get("save", False):
-
-            import dill
-
-            model.save("./models/keras_full_%s.keras" % fit["id"])
-            model.save_weights("./models/keras_weights_%s.keras" % fit["id"])
-
-            dill.dump(preds, open("./models/test_predictions_%s.dill" % fit["id"], "w"))
-            dill.dump(qstest["label"], open("./models/test_truths_%s.dill" % fit["id"], "w"))
+            model = load_model("./models/keras_full_%s.keras" % fit["id"])
+            test_truths = dill.load(open("./models/test_truths_%s.dill" % fit["id"], "r"))
+            test_preds = dill.load(open("./models/test_preds_%s.dill" % fit["id"], "r"))
 
         embed()
 
         if fit.get("plots", True):
-            preds = model.predict(inp_test_data)
 
+            print "Making a few plots..."
+            pass
 
 
 if __name__ == "__main__":
