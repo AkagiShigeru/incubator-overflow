@@ -1,0 +1,6 @@
+TODO NOTES
+
+stack_kerasfit
+--------------
+
+- parallelization of tokenization, cleaning, padding and other steps -> much improved performance
