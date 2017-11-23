@@ -98,7 +98,7 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -207,7 +207,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
 # score groups
 fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.95])
 fit_nn["grouplabels"] = ["bad", "normal", "good"]
-fit_nn["nsample"] = 200000
+fit_nn["nsample"] = 400000
 fit_nn["uniform"] = True
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
@@ -217,5 +217,5 @@ fit_nn["binary"] = False
 fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
-fit_nn["from_cache"] = True
+fit_nn["from_cache"] = False
 # fits.append(fit_nn.copy())
