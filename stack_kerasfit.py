@@ -379,10 +379,33 @@ def FittingFriend(cfg):
                 plt.savefig("./plots/hist_mostcommontags.pdf")
 
 
+def PlotPredictionVsLabels(df, preds, cfg):
+
+    nclasses = len(np.unique(df.label))
+
+    # result from "best" class
+    goodpreds = preds[0].T[nclasses - 1]
+
+    mask = df.Score > 0
+    plt.figure()
+    plt.xlabel(r"Question score")
+    plt.ylabel(r"Estimated probability of high score")
+
+    xbins = mquantiles(df.Score[mask], prob=np.linspace(0, 1, 20))
+
+    QuickSlicePlot(df.Score[mask], goodpreds[mask], goodpreds[mask], zbins=1, xbins=xbins, yrange=[0, 1],
+                   draw="amv", color="k", ms=6, axes=plt.gca())
+
+    plt.ylim(0., 1.)
+    plt.semilogx()
+    plt.savefig("./plots/pred_probs_vs_class_score_%s.pdf" % cfg["id"])
+
+
 def PlotPredictionHistograms(truths, preds, cfg):
 
     mpreds = preds[0]
     truevals = np.unique(truths)
+    print truevals
 
     for predi in xrange(len(truevals)):
 
