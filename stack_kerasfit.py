@@ -355,7 +355,7 @@ def FittingFriend(cfg):
             model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
             test_truths = dill.load(open("./models/test_truths_%s.dill" % fitcfg["id"], "r"))
             test_preds = dill.load(open("./models/test_preds_%s.dill" % fitcfg["id"], "r"))
-            # test_df = dill.load(open("./models/test_df_%s.dill" % fitcfg["id"], "r"))
+            test_df = dill.load(open("./models/test_df_%s.dill" % fitcfg["id"], "r"))
 
         # embed()
 
@@ -368,8 +368,9 @@ def FittingFriend(cfg):
             PlotConfusionMatrix(test_truths, test_preds, fitcfg, labels=fitcfg.get("grouplabels", None))
             # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
             PlotPredictionHistograms(test_truths, test_preds, fitcfg)
+            PlotPredictionVsLabels(test_df, test_preds, fitcfg)
 
-            if True:
+            if False:
                 # plt.clear()
                 plt.figure()
                 cfg.mostcommon_tags.set_index("tags").head(20).plot.bar(ax=plt.gca())
@@ -383,21 +384,25 @@ def PlotPredictionHistograms(truths, preds, cfg):
     mpreds = preds[0]
     truevals = np.unique(truths)
 
-    plt.figure()
-    plt.xlabel(r"Predicted probability to have a good score")
-    plt.ylabel(r"Number of predictions (normalized)")
+    for predi in xrange(len(truevals)):
 
-    for trueval in truevals:
+        plt.figure()
+        plt.xlabel(r"Predicted probability to have a %s score" % cfg["grouplabels"][truevals[predi]])
+        plt.ylabel(r"Number of predictions (normalized)")
 
-        mask = truths == trueval
-        goodpreds = mpreds.T[len(truevals) - 1]
+        for trueval in truevals:
 
-        plt.hist(goodpreds[mask], ls="-", color=g_carr[trueval + 1], lw=2, range=[0, 1], bins=100, histtype="step", density=True,
-                 label=cfg["grouplabels"][trueval])
+            mask = truths == trueval
+            goodpreds = mpreds.T[predi]
 
-    plt.xlim(0., 1.)
-    plt.legend(loc="best")
-    plt.savefig("./plots/pred_probs_vs_groups_%s.pdf" % cfg["id"])
+            plt.hist(goodpreds[mask], ls="-", color=g_carr[trueval + 1], lw=2,
+                     range=[0, 1], bins=100,
+                     histtype="step", density=True,
+                     label=cfg["grouplabels"][trueval])
+
+        plt.xlim(0., 1.)
+        plt.legend(loc="best")
+        plt.savefig("./plots/pred_probs_vs_groups_%s_%s.pdf" % (cfg["id"], cfg["grouplabels"][truevals[predi]]))
 
 
 def PlotConfusionMatrix(truths, preds, cfg, labels=None):
