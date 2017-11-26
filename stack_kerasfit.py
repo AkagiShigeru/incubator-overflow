@@ -154,6 +154,13 @@ def FittingFriend(cfg):
                 titles_train = np.squeeze(qstrain.Title.values)
                 titles_test = np.squeeze(qstest.Title.values)
 
+                if fitcfg.get("clean", False):
+                    print "Cleaning titles..."
+                    titles_train = [TextCleansing(t) for t in titles_train]
+                    titles_test = [TextCleansing(t) for t in titles_test]
+                else:
+                    print "Warning! Titles are not cleaned! (stop-words, lemmatization etc)"
+
                 if not word_tokenizer:
                     print "Building tokenizer on titles."
                     word_tokenizer = Tokenizer(fit["nfeatures"])
