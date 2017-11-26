@@ -11,23 +11,12 @@ import pandas as pd
 from stack_util import local_import, UnescapeHTML
 from stack_words import GetRelevantWords
 from keras.models import load_model
+from stack_readin import own_cols
 
 
 def GetAllFeatures(userposts, cfg, debug=False):
     """ Calculate features used by models / estimators.
         Beware: features could be hard-coded here with respect to other streamlined anlaysis scripts."""
-
-    from stack_readin import own_cols
-
-    if "dict" not in cfg.data:
-        store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
-        print "Loading word dictionary..."
-        wdict = store_dict.select("dict")
-        wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
-        wdict = wdict.sort_values(by="n", ascending=False)
-        wdict["order"] = np.arange(1, wdict.shape[0] + 1)
-    else:
-        wdict = cfg["dict"]
 
     features = []
     for userpost in userposts:
@@ -92,8 +81,28 @@ def AnalyzePost(cfg, userpost=None, pid=None):
     for fitcfg in cfg.fits:
 
         print fitcfg["id"]
-        tokenizer = dill.load(open(fitcfg.get("tokenizer", "./models/tokenizer_%s.dill" % fitcfg["id"]), "r"))
-        model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
+
+
+
+def PrepareModels(cfg):
+
+    if "dict" not in cfg.data:
+        store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
+        print "Loading word dictionary..."
+        wdict = store_dict.select("dict")
+        wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
+        wdict = wdict.sort_values(by="n", ascending=False)
+        wdict["order"] = np.arange(1, wdict.shape[0] + 1)
+    else:
+        wdict = cfg.data["dict"]
+
+    for fitcfg in cfg.fits:
+
+        print "Preparing %s." % fitcfg["id"]
+        fitcfg["tokenizer_obj"] = dill.load(open(fitcfg.get("tokenizer", "./models/tokenizer_%s.dill" % fitcfg["id"]), "r"))
+        fitcfg["model_obj"] = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
+
+    return cfg
 
 
 if __name__ == "__main__":
@@ -121,4 +130,5 @@ if __name__ == "__main__":
                 "CreationDate": "26/11/2017",
                 "UserName": "testuser"}
 
+    cfg = PrepareModels(cfg)
     AnalyzePost(cfg, userpost=userpost, pid=None)

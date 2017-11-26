@@ -285,6 +285,7 @@ def FittingFriend(cfg):
 
             test_truths = qstest["label"]
             test_preds = model.predict(inp_test_data)
+            test_df = qstest
 
             if fitcfg.get("save", False):
 
@@ -444,6 +445,7 @@ def PlotTrainingResult(logdf, cfg):
     sfig.plot(logdf.epoch + 1, logdf.val_main_out_acc, ls="-", marker="s", color="r", label="Testing accuracy")
 
     plt.legend(loc="upper left")
+    plt.gca().xaxis.set_major_formatter(FormatStrFormatter("%i"))
     plt.ylim(0., 1.)
 
     plt.savefig("./plots/training_results_%s.pdf" % cfg["id"])
