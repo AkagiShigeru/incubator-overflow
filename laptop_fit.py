@@ -124,6 +124,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
 # score groups
 fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.97])
 fit_nn["grouplabels"] = ["normal", "good"]
+fit_nn["tokenizer"] = "./models/tokenizer_keras_tagprediction.dill"
 fit_nn["nsample"] = 200000
 fit_nn["seed"] = 42
 fit_nn["uniform"] = True
