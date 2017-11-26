@@ -6,41 +6,46 @@
 #
 import os
 import dill
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
-from stack_util import local_import, UnescapeHTML
+
+from stack_util import local_import, UnescapeHTML, TextCleansing
 from stack_words import GetRelevantWords
-from keras.models import load_model
 from stack_readin import own_cols
+
+from keras.models import load_model
+from keras.preprocessing.sequence import pad_sequences
 
 
 def GetAllFeatures(userposts, cfg, debug=False):
     """ Calculate features used by models / estimators.
         Beware: features could be hard-coded here with respect to other streamlined anlaysis scripts."""
 
-    features = []
+    wdict = cfg.data["wdict"]
+
+    features = defaultdict(list)
     for userpost in userposts:
 
-        feature_dict = {}
-
-        feature_dict["Body_unesc"] = UnescapeHTML(userpost["Body"].decode("utf-8"))
+        features["Body_unesc"].append(UnescapeHTML(userpost["Body"].decode("utf-8")))
 
         # raw features in stack_readin.py
         for own_col, own_fct in own_cols.items():
 
-            feature_dict[own_col] = own_fct(feature_dict)
+            features[own_col].append(own_fct({"Body_unesc": features["Body_unesc"][-1]}))
 
         # from stack_nlp.py in PrepareData
-        feature_dict["titlelen"] = len(userpost["Title"])
+        features["titlelen"].append(len(userpost["Title"]))
 
         # from stack_nlp.py in PrepareData
         d = pd.to_datetime(userpost["CreationDate"])
-        feature_dict["dayhour"] = d.hour
-        feature_dict["weekday"] = d.dayofweek
-        feature_dict["day"] = d.dayofyear
+        features["dayhour"].append(d.hour)
+        features["weekday"].append(d.dayofweek)
+        features["day"].append(d.dayofyear)
 
         # from stack_words.py
-        ws, nws, ratio = GetRelevantWords(feature_dict["Body_unesc"], get_ratio=True)
+        ws, nws, ratio = GetRelevantWords(features["Body_unesc"][-1], get_ratio=True)
 
         if debug:
             print ws, nws, ratio
@@ -49,43 +54,78 @@ def GetAllFeatures(userposts, cfg, debug=False):
         wsdf.set_index("w", inplace=True, drop=False)
         wsdf = wsdf.join(wdict, how="inner")
 
-        feature_dict["ratio"] = float(ratio)
-        feature_dict["nwords"] = int(nws)
-        feature_dict["ordersum"] = float(wsdf.order.sum()) if not np.isnan(wsdf.order.sum()) else 0.
-        feature_dict["ordermean"] = float(wsdf.order.mean()) if not np.isnan(wsdf.order.mean()) else 0.
-        feature_dict["orderstd"] = float(wsdf.order.std()) if not np.isnan(wsdf.order.std()) else 0.
-
-        features.append(feature_dict)
+        features["ratio"].append(float(ratio))
+        features["nwords"].append(int(nws))
+        features["ordersum"].append(float(wsdf.order.sum()) if not np.isnan(wsdf.order.sum()) else 0.)
+        features["ordermean"].append(float(wsdf.order.mean()) if not np.isnan(wsdf.order.mean()) else 0.)
+        features["orderstd"].append(float(wsdf.order.std()) if not np.isnan(wsdf.order.std()) else 0.)
 
     return features
 
 
-def AnalyzePost(cfg, userpost=None, pid=None):
+def AnalyzePost(cfg, userposts=None, pids=None):
     """
     Analyze an existing post in db or custom user input.
     """
-    if userpost is not None:
-        print "Analyzing post provided by user"
+    if userposts is not None:
+        print "Analyzing posts provided by user"
         print userpost
-    elif pid is not None:
-        print "Taking post from db and caches..."
+    elif pids is not None:
+        print "Taking posts from db and caches..."
         # userpost = ...
         # todo implement
     else:
         AssertionError("No input provided!")
 
     # feature calculation
-    features = GetAllFeatures([userpost], cfg)
-    print features
+    post_features = GetAllFeatures(userposts, cfg)
+    print post_features
 
     for fitcfg in cfg.fits:
 
-        print fitcfg["id"]
+        fneeds = fitcfg["feature_needs"]
+        tokenizer = fitcfg["tokenizer_obj"]
+        model = fitcfg["model_obj"]
+
+        allfeatures = []
+        if "posts" in fneeds:
+
+            posts = post_features["Body_unesc"]
+            if fitcfg.get("clean", False):
+                posts = [TextCleansing(p) for p in posts]
+
+            posts = tokenizer.texts_to_sequences(posts)
+            maxlen_posts = 500  # this catches roughly 95 % of all posts with text cleaning
+            posts = pad_sequences(posts, maxlen=maxlen_posts, padding="post", truncating="post")
+
+            allfeatures.append(posts)
+
+        if "titles" in fneeds:
+
+            titles = post_features["Body_unesc"]
+            if fitcfg.get("clean", False):
+                titles = [TextCleansing(t) for t in titles]
+
+            titles = tokenizer.texts_to_sequences(titles)
+            maxlen_titles = 30  # this catches roughly 95 % of all titles with text cleaning
+            titles = pad_sequences(titles, maxlen=maxlen_titles, padding="post", truncating="post")
+
+            allfeatures.append(titles)
+
+        for fneed in fneeds:
+
+            if fneed not in ["posts", "titles"]:
+
+                allfeatures.append(post_features[fneed])
+
+        print allfeatures
+
 
 
 
 def PrepareModels(cfg):
 
+    # loading word dictionary for feature calculation
     if "dict" not in cfg.data:
         store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
         print "Loading word dictionary..."
@@ -93,14 +133,23 @@ def PrepareModels(cfg):
         wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
         wdict = wdict.sort_values(by="n", ascending=False)
         wdict["order"] = np.arange(1, wdict.shape[0] + 1)
-    else:
-        wdict = cfg.data["dict"]
+        cfg.data["wdict"] = wdict
 
     for fitcfg in cfg.fits:
 
         print "Preparing %s." % fitcfg["id"]
         fitcfg["tokenizer_obj"] = dill.load(open(fitcfg.get("tokenizer", "./models/tokenizer_%s.dill" % fitcfg["id"]), "r"))
         fitcfg["model_obj"] = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
+
+        # which features are needed
+        feature_needs = []
+        if fitcfg.get("posts", False):
+            feature_needs.append("posts")
+        if fitcfg.get("titles", False):
+            feature_needs.append("titles")
+        feature_needs.extend(fitcfg.get("cat_features", []))
+        feature_needs.extend(fitcfg.get("features", []))
+        fitcfg["feature_needs"] = feature_needs
 
     return cfg
 
@@ -131,4 +180,4 @@ if __name__ == "__main__":
                 "UserName": "testuser"}
 
     cfg = PrepareModels(cfg)
-    AnalyzePost(cfg, userpost=userpost, pid=None)
+    AnalyzePost(cfg, userposts=[userpost], pids=None)
