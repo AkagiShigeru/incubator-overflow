@@ -135,7 +135,7 @@ def local_import(x):
     return rv
 
 
-def SelectUniformlyFromColumn(df, col, n=100000, randomize=True):
+def SelectUniformlyFromColumn(df, col, n=100000, randomize=True, seed=42):
     from sklearn.utils import shuffle
     uniques = df[col].unique()
     nu = n // len(uniques)
@@ -146,7 +146,7 @@ def SelectUniformlyFromColumn(df, col, n=100000, randomize=True):
         nu = min(navailable)
     new = None
     for unique in uniques:
-        sel = df[df[col] == unique].sample(nu)
+        sel = df[df[col] == unique].sample(nu, random_state=seed)
         if new is None:
             new = sel
         else:

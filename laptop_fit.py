@@ -68,10 +68,11 @@ def LocateFirst(l, tagdf, nt=10):
     return nt
 
 # identifying first n labels
-fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
+fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 30)))
 
 fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:20].tags.values) + ["other"]
-fit_nn["nsample"] = 400000
+fit_nn["nsample"] = 500000
+fit_nn["seed"] = 42
 fit_nn["uniform"] = False
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
@@ -132,6 +133,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
 fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.95])
 fit_nn["grouplabels"] = ["normal", "good"]
 fit_nn["nsample"] = 200000
+fit_nn["seed"] = 42
 fit_nn["uniform"] = True
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100

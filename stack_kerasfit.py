@@ -81,15 +81,16 @@ def FittingFriend(cfg):
             print "Calculating labels according to provided label function..."
             qs["label"] = fitcfg["labelfct"](qs)
             nsample = fitcfg.get("nsample", 100000)
+            seed = fitcfg.get("seed", np.random.randint(1e6))
 
             if fitcfg.get("uniform", True):
 
                 print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
-                qssel = SelectUniformlyFromColumn(qs, "label", n=nsample)
+                qssel = SelectUniformlyFromColumn(qs, "label", n=nsample, seed=seed)
 
             else:
                 print "Selecting a sample of %i posts randomly." % nsample
-                qssel = qs.sample(nsample)
+                qssel = qs.sample(nsample, random_state=seed)
 
             if fitcfg.get("binary", False):
                 nouts = 1
