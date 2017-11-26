@@ -55,23 +55,31 @@ fit_nn["titles"] = True
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
-fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
+fit_nn["cat_features"] = ["weekday", "dayhour"]
 
 # just identifying python label
 # fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
 
 
 def LocateFirst(l, tagdf, nt=10):
-    ins = np.isin(tagdf.iloc[:nt].tags.values, l)
-    first = np.where(ins == True)[0]
+    """ Finds occurence of hottest tag: first priority is order in l and then order in tagdf. """
+    ins = np.isin(l, tagdf.iloc[:nt].tags.values)
+    first = np.where(ins)[0]
     if len(first) > 0:
-        return first[0]
+        return np.where(tagdf.iloc[:nt].tags.values == l[first[0]])[0][0]
     return nt
 
-# identifying first n labels
-fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 30)))
 
-fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:20].tags.values) + ["other"]
+# for later
+def LocateAll(l, tagdf, nt=10):
+    ins = np.isin(tagdf.iloc[:nt].tags.values, l)
+    return np.asarray(list(ins) + [1 if np.sum(ins) > 0 else 0], dtype=int)
+
+# identifying first n labels
+fit_nn["ntags"] = 30
+fit_nn["labelfct"] = lambda df, fcfg: np.asarray(df.Tags.apply(lambda x: LocateFirst(np.asarray(x), mostcommon_tags, fcfg["ntags"])))
+
+fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:fit_nn["ntags"]].tags.values) + ["other"]
 fit_nn["nsample"] = 500000
 fit_nn["seed"] = 42
 fit_nn["uniform"] = False
@@ -83,8 +91,8 @@ fit_nn["binary"] = False
 fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
-fit_nn["from_cache"] = True
-# fits.append(fit_nn.copy())
+fit_nn["from_cache"] = False
+fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -100,7 +108,7 @@ fit_nn["titles"] = True
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
-fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
+fit_nn["cat_features"] = ["weekday", "dayhour"]
 
 
 def scoregroups(df, upqs=[0.1, 0.9]):
@@ -114,7 +122,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     return df.label
 
 # score groups
-fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.95])
+fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.97])
 fit_nn["grouplabels"] = ["normal", "good"]
 fit_nn["nsample"] = 200000
 fit_nn["seed"] = 42
@@ -127,8 +135,8 @@ fit_nn["binary"] = False
 fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
-fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+fit_nn["from_cache"] = False
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -144,13 +152,13 @@ fit_nn["titles"] = True
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
-fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
+fit_nn["cat_features"] = ["weekday", "dayhour"]
 
 # just identifying python label
 # fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
 
 # score groups
-fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.95])
+fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.1, 0.95])
 fit_nn["grouplabels"] = ["bad", "normal", "good"]
 fit_nn["nsample"] = 400000
 fit_nn["seed"] = 42

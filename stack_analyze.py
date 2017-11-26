@@ -63,7 +63,7 @@ def GetAllFeatures(userposts, cfg, debug=False):
     return features
 
 
-def AnalyzePost(cfg, userposts=None, pids=None):
+def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
     """
     Analyze an existing post in db or custom user input.
     """
@@ -79,7 +79,8 @@ def AnalyzePost(cfg, userposts=None, pids=None):
 
     # feature calculation
     post_features = GetAllFeatures(userposts, cfg)
-    print post_features
+    if debug:
+        print post_features
 
     for fitcfg in cfg.fits:
 
@@ -116,9 +117,12 @@ def AnalyzePost(cfg, userposts=None, pids=None):
 
             if fneed not in ["posts", "titles"]:
 
-                allfeatures.append(post_features[fneed])
+                allfeatures.append(np.asarray(post_features[fneed]))
 
-        print allfeatures
+        pred = model.predict(allfeatures)
+        fitcfg["fitpred"] = pred
+
+        print pred
 
 
 

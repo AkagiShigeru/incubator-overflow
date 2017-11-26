@@ -79,7 +79,7 @@ def FittingFriend(cfg):
                 return 0.
 
             print "Calculating labels according to provided label function..."
-            qs["label"] = fitcfg["labelfct"](qs)
+            qs["label"] = fitcfg["labelfct"](qs, fitcfg)
             nsample = fitcfg.get("nsample", 100000)
             seed = fitcfg.get("seed", np.random.randint(1e6))
 
