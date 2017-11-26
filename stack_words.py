@@ -21,9 +21,9 @@ except:
 
 import unicodedata
 
-try:
-    import spacy
-    nlp = spacy.load("en_core_web_md")
+try:  # on local machine, due to weird behaviour after spacy update
+    import en_core_web_md
+    nlp = en_core_web_md.load()
 except:
     from spacy.en import English
     nlp = English()

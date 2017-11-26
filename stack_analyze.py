@@ -7,6 +7,7 @@
 import os
 from stack_nlp import *
 from stack_util import local_import
+from stack_words import GetRelevantWords
 
 
 def GetAllFeatures(userposts, cfg):
@@ -18,29 +19,50 @@ def GetAllFeatures(userposts, cfg):
     if "dict" not in cfg.data:
         store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
         print "Loading word dictionary..."
-        words = store_dict.select("dict")
-        words["freqs"] = words.n * 1. / words.n.sum()
-        words = words.sort_values(by="n", ascending=False)
-        words["order"] = np.arange(1, words.shape[0] + 1)
+        wdict = store_dict.select("dict")
+        wdict["freqs"] = wdict.n * 1. / wdict.n.sum()
+        wdict = wdict.sort_values(by="n", ascending=False)
+        wdict["order"] = np.arange(1, wdict.shape[0] + 1)
     else:
-        words = cfg["dict"]
+        wdict = cfg["dict"]
 
-    features = defaultdict(list)
+    features = []
     for userpost in userposts:
+
+        feature_dict = {}
+
+        feature_dict["Body_unesc"] = UnescapeHTML(userpost["Body"].decode("utf-8"))
 
         # raw features in stack_readin.py
         for own_col, own_fct in own_cols.items():
 
-            features[own_col].append(own_fct({"Body_unesc": UnescapeHTML(userpost["Body"].decode("utf-8"))}))
+            feature_dict[own_col] = own_fct(feature_dict)
 
         # from stack_nlp.py in PrepareData
-        features["titlelen"].append(len(userpost["Title"]))
+        feature_dict["titlelen"] = len(userpost["Title"])
 
         # from stack_nlp.py in PrepareData
         d = pd.to_datetime(userpost["CreationDate"])
-        features["dayhour"].append(d.hour)
-        features["weekday"].append(d.dayofweek)
-        features["day"].append(d.dayofyear)
+        feature_dict["dayhour"] = d.hour
+        feature_dict["weekday"] = d.dayofweek
+        feature_dict["day"] = d.dayofyear
+
+        # from stack_words.py
+        ws, nws, ratio = GetRelevantWords(feature_dict["Body_unesc"], get_ratio=True)
+
+        print ws, nws, ratio
+
+        wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
+        wsdf.set_index("w", inplace=True, drop=False)
+        wsdf = wsdf.join(wdict, how="inner")
+
+        feature_dict["ratio"] = float(ratio)
+        feature_dict["nwords"] = int(nws)
+        feature_dict["ordersum"] = float(wsdf.order.sum())
+        feature_dict["ordermean"] = float(wsdf.order.mean())
+        feature_dict["orderstd"] = float(wsdf.order.std())
+
+        features.append(feature_dict)
 
     return features
 
@@ -62,6 +84,12 @@ def AnalyzePost(cfg, userpost=None, pid=None):
     # feature calculation
     features = GetAllFeatures([userpost], cfg)
     print features
+
+    for fitcfg in cfg.fits:
+
+        print fitcfg["id"]
+        tokenizer = dill.load(open("./models/tokenizer_%s.dill" % fitcfg["id"], "r"))
+        model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
 
 
 if __name__ == "__main__":

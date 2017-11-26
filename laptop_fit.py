@@ -43,7 +43,7 @@ fits = []
 
 fit_nn = {}
 fit_nn["id"] = "keras_tagprediction"
-fit_nn["type"] = "keras_embedding"
+fit_nn["type"] = "keras_embedding_tags"
 fit_nn["name"] = "Predicting code topics / tags with word embeddings"
 fit_nn["embed_dim"] = 300
 fit_nn["embed_path"] = "/home/alex/data/glove.6B.%id.txt" % fit_nn["embed_dim"]
@@ -103,7 +103,7 @@ fit_nn["from_cache"] = True
 
 fit_nn = {}
 fit_nn["id"] = "keras_scoreprediction_twoclasses"
-fit_nn["type"] = "keras_embedding"
+fit_nn["type"] = "keras_embedding_scores"
 fit_nn["name"] = "Predicting questions scores with word embeddings"
 fit_nn["embed_dim"] = 300
 fit_nn["embed_path"] = "/home/alex/data/glove.6B.%id.txt" % fit_nn["embed_dim"]
@@ -141,7 +141,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     upqvals = np.append([df.Score.min()], np.append(mquantiles(df.Score, prob=upqs), [df.Score.max()]))
     for ui in xrange(len(upqvals) - 1):
         print "Group %i: score range: (%.1f, %.1f]" % (ui, upqvals[ui], upqvals[ui + 1])
-        df.loc[(df.Score > upqvals[ui]) & (df.Score <= upqvals[ui + 1]), "label"] = ui
+        df.loc[(df.Score >= upqvals[ui]) & (df.Score < upqvals[ui + 1]), "label"] = ui
     return df.label
 
 # score groups
