@@ -65,6 +65,7 @@ def FittingFriend(cfg):
             assert "embed_path" in fitcfg, "Embedding input is not defined! This is currently required!"
 
             if not os.path.exists(fitcfg["embed_out"]):
+                print "Embedding word2vec file does not exist yet, attempting conversion!"
                 ConvertToGensimFile(fitcfg["embed_path"], fitcfg["embed_out"])
 
             assert "labelfct" in fitcfg, "Necessary to provide label function!"
@@ -122,11 +123,15 @@ def FittingFriend(cfg):
                 else:
                     print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
 
-                print "Fitting tokenizer..."
-                word_tokenizer = Tokenizer(fitcfg["nfeatures"])
-                word_tokenizer.fit_on_texts(posts_train)
-                print "Dumping tokenizer to file for later use."
-                dill.dump(word_tokenizer, open("./models/tokenizer_%s.dill" % fitcfg["id"], "w"))
+                if fitcfg.get("tokenizer", False):
+                    print "Fitting tokenizer..."
+                    word_tokenizer = Tokenizer(fitcfg["nfeatures"])
+                    word_tokenizer.fit_on_texts(posts_train + posts_test)
+                    print "Dumping tokenizer to file for later use."
+                    dill.dump(word_tokenizer, open("./models/tokenizer_%s.dill" % fitcfg["id"], "w"))
+                else:
+                    print "Using pre-fitted tokenizer..."
+                    word_tokenizer = dill.load(open("./models/tokenizer_%s.dill" % fitcfg["id"], "r"))
 
                 print "Tokenizing..."
                 posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)

@@ -70,22 +70,6 @@ def LocateFirst(l, tagdf, nt=10):
 # identifying first n labels
 fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
 
-# score > 0 label
-# fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
-
-
-def scoregroups(df, upqs=[0.1, 0.9]):
-    from scipy.stats.mstats import mquantiles
-    df["label"] = 1
-    print "Performing automagical score grouping"
-    upqvals = np.append([df.Score.min()], np.append(mquantiles(df.Score, prob=upqs), [df.Score.max()]))
-    for ui in xrange(len(upqvals) - 1):
-        print "Group %i: score range: (%.1f, %.1f]" % (ui, upqvals[ui], upqvals[ui + 1])
-        df.loc[(df.Score > upqvals[ui]) & (df.Score <= upqvals[ui + 1]), "label"] = ui
-    return df.label
-
-# score groups
-# fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.9])
 fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:20].tags.values) + ["other"]
 fit_nn["nsample"] = 400000
 fit_nn["uniform"] = False
@@ -140,7 +124,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     print "Performing automagical score grouping"
     upqvals = np.append([df.Score.min()], np.append(mquantiles(df.Score, prob=upqs), [df.Score.max()]))
     for ui in xrange(len(upqvals) - 1):
-        print "Group %i: score range: (%.1f, %.1f]" % (ui, upqvals[ui], upqvals[ui + 1])
+        print "Group %i: score range: [%.1f, %.1f)" % (ui, upqvals[ui], upqvals[ui + 1])
         df.loc[(df.Score >= upqvals[ui]) & (df.Score < upqvals[ui + 1]), "label"] = ui
     return df.label
 
@@ -178,31 +162,6 @@ fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 
 # just identifying python label
 # fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
-
-
-def LocateFirst(l, tagdf, nt=10):
-    ins = np.isin(tagdf.iloc[:nt].tags.values, l)
-    first = np.where(ins == True)[0]
-    if len(first) > 0:
-        return first[0]
-    return nt
-
-# identifying first n labels
-# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
-
-# score > 0 label
-# fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
-
-
-def scoregroups(df, upqs=[0.1, 0.9]):
-    from scipy.stats.mstats import mquantiles
-    df["label"] = 1
-    print "Performing automagical score grouping"
-    upqvals = np.append([df.Score.min()], np.append(mquantiles(df.Score, prob=upqs), [df.Score.max()]))
-    for ui in xrange(len(upqvals) - 1):
-        print "Group %i: score range: (%.1f, %.1f]" % (ui, upqvals[ui], upqvals[ui + 1])
-        df.loc[(df.Score > upqvals[ui]) & (df.Score <= upqvals[ui + 1]), "label"] = ui
-    return df.label
 
 # score groups
 fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.95])
