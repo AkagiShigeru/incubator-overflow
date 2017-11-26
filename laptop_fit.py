@@ -23,6 +23,7 @@ paths["dictionaries"] = os.path.join(paths["caches"], "dictionaries/")
 # data
 data = {}
 
+# TO DO: functionality to run multiple years at once
 year = 2016
 
 posts_path = paths["db"]
@@ -101,23 +102,6 @@ fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "orderstd"]
 fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 
-# just identifying python label
-# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
-
-
-def LocateFirst(l, tagdf, nt=10):
-    ins = np.isin(tagdf.iloc[:nt].tags.values, l)
-    first = np.where(ins == True)[0]
-    if len(first) > 0:
-        return first[0]
-    return nt
-
-# identifying first n labels
-# fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: LocateFirst(x, mostcommon_tags, 20)))
-
-# score > 0 label
-# fit_nn["labelfct"] = np.asarray(qs.Score > 0, dtype=int)
-
 
 def scoregroups(df, upqs=[0.1, 0.9]):
     from scipy.stats.mstats import mquantiles
@@ -169,6 +153,7 @@ fit_nn["cat_features"] = ["weekday", "dayhour", "day"]
 fit_nn["labelfct"] = lambda df: scoregroups(df, upqs=[0.1, 0.95])
 fit_nn["grouplabels"] = ["bad", "normal", "good"]
 fit_nn["nsample"] = 400000
+fit_nn["seed"] = 42
 fit_nn["uniform"] = True
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
