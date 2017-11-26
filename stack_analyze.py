@@ -5,12 +5,15 @@
 #
 #
 import os
-from stack_nlp import *
-from stack_util import local_import
+import dill
+import numpy as np
+import pandas as pd
+from stack_util import local_import, UnescapeHTML
 from stack_words import GetRelevantWords
+from keras.models import load_model
 
 
-def GetAllFeatures(userposts, cfg):
+def GetAllFeatures(userposts, cfg, debug=False):
     """ Calculate features used by models / estimators.
         Beware: features could be hard-coded here with respect to other streamlined anlaysis scripts."""
 
@@ -50,7 +53,8 @@ def GetAllFeatures(userposts, cfg):
         # from stack_words.py
         ws, nws, ratio = GetRelevantWords(feature_dict["Body_unesc"], get_ratio=True)
 
-        print ws, nws, ratio
+        if debug:
+            print ws, nws, ratio
 
         wsdf = pd.DataFrame({"w": ws.keys(), "mult": ws.values()})
         wsdf.set_index("w", inplace=True, drop=False)
@@ -88,7 +92,7 @@ def AnalyzePost(cfg, userpost=None, pid=None):
     for fitcfg in cfg.fits:
 
         print fitcfg["id"]
-        tokenizer = dill.load(open("./models/tokenizer_%s.dill" % fitcfg["id"], "r"))
+        tokenizer = dill.load(open(fitcfg.get("tokenizer", "./models/tokenizer_%s.dill" % fitcfg["id"]), "r"))
         model = load_model("./models/keras_full_%s.keras" % fitcfg["id"])
 
 
