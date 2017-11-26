@@ -123,7 +123,7 @@ def FittingFriend(cfg):
                 else:
                     print "Warning! Posts are not cleaned! (stop-words, lemmatization etc)"
 
-                if fitcfg.get("tokenizer", False):
+                if not fitcfg.get("tokenizer", False):
                     print "Fitting tokenizer..."
                     word_tokenizer = Tokenizer(fitcfg["nfeatures"])
                     word_tokenizer.fit_on_texts(posts_train + posts_test)

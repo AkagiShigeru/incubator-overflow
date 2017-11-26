@@ -58,9 +58,9 @@ def GetAllFeatures(userposts, cfg):
 
         feature_dict["ratio"] = float(ratio)
         feature_dict["nwords"] = int(nws)
-        feature_dict["ordersum"] = float(wsdf.order.sum())
-        feature_dict["ordermean"] = float(wsdf.order.mean())
-        feature_dict["orderstd"] = float(wsdf.order.std())
+        feature_dict["ordersum"] = float(wsdf.order.sum()) if not np.isnan(wsdf.order.sum()) else 0.
+        feature_dict["ordermean"] = float(wsdf.order.mean()) if not np.isnan(wsdf.order.mean()) else 0.
+        feature_dict["orderstd"] = float(wsdf.order.std()) if not np.isnan(wsdf.order.std()) else 0.
 
         features.append(feature_dict)
 
