@@ -7,6 +7,7 @@
 import re
 import pandas as pd
 import numpy as np
+import dill
 
 from scipy.stats.mstats import mquantiles
 

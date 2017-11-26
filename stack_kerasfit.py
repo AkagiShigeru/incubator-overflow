@@ -125,6 +125,8 @@ def FittingFriend(cfg):
                 print "Fitting tokenizer..."
                 word_tokenizer = Tokenizer(fitcfg["nfeatures"])
                 word_tokenizer.fit_on_texts(posts_train)
+                print "Dumping tokenizer to file for later use."
+                dill.dump(word_tokenizer, open("./models/tokenizer_%s.dill" % fitcfg["id"], "w"))
 
                 print "Tokenizing..."
                 posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)
@@ -149,7 +151,7 @@ def FittingFriend(cfg):
                 if not word_tokenizer:
                     print "Building tokenizer on titles."
                     word_tokenizer = Tokenizer(fit["nfeatures"])
-                    word_tokenizer.fitcfg_on_texts(titles_train)
+                    word_tokenizer.fit_on_texts(titles_train)
 
                 titles_train_tf = word_tokenizer.texts_to_sequences(titles_train)
                 titles_test_tf = word_tokenizer.texts_to_sequences(titles_test)

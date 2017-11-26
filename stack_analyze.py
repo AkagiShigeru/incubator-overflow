@@ -9,6 +9,42 @@ from stack_nlp import *
 from stack_util import local_import
 
 
+def GetAllFeatures(userposts, cfg):
+    """ Calculate features used by models / estimators.
+        Beware: features could be hard-coded here with respect to other streamlined anlaysis scripts."""
+
+    from stack_readin import own_cols
+
+    if "dict" not in cfg.data:
+        store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
+        print "Loading word dictionary..."
+        words = store_dict.select("dict")
+        words["freqs"] = words.n * 1. / words.n.sum()
+        words = words.sort_values(by="n", ascending=False)
+        words["order"] = np.arange(1, words.shape[0] + 1)
+    else:
+        words = cfg["dict"]
+
+    features = defaultdict(list)
+    for userpost in userposts:
+
+        # raw features in stack_readin.py
+        for own_col, own_fct in own_cols.items():
+
+            features[own_col].append(own_fct({"Body_unesc": UnescapeHTML(userpost["Body"].decode("utf-8"))}))
+
+        # from stack_nlp.py in PrepareData
+        features["titlelen"].append(len(userpost["Title"]))
+
+        # from stack_nlp.py in PrepareData
+        d = pd.to_datetime(userpost["CreationDate"])
+        features["dayhour"].append(d.hour)
+        features["weekday"].append(d.dayofweek)
+        features["day"].append(d.dayofyear)
+
+    return features
+
+
 def AnalyzePost(cfg, userpost=None, pid=None):
     """
     Analyze an existing post in db or custom user input.
@@ -24,6 +60,8 @@ def AnalyzePost(cfg, userpost=None, pid=None):
         AssertionError("No input provided!")
 
     # feature calculation
+    features = GetAllFeatures([userpost], cfg)
+    print features
 
 
 if __name__ == "__main__":
@@ -46,9 +84,9 @@ if __name__ == "__main__":
             print "Creating non-existing directory {0}.".format(p)
             os.makedirs(p)
 
-    userpost = {"post": "This is crappy testpost",
-                "title": "testpost",
-                "date": "26/11/2017",
-                "user": "testuser"}
+    userpost = {"Body": "This is crappy testpost",
+                "Title": "testpost",
+                "CreationDate": "26/11/2017",
+                "UserName": "testuser"}
 
     AnalyzePost(cfg, userpost=userpost, pid=None)
