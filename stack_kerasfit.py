@@ -200,6 +200,12 @@ def FittingFriend(cfg):
                                             weights=[weights_matrix],
                                             input_length=maxlen_posts,
                                             trainable=fitcfg.get("train_embeddings", True))(posts_input)
+
+                if fitcfg.get("cnn", False):
+                    print "Using CNN layer in network, please check options for filter and kernel size."
+                    posts_embedding = Conv1D(250, 3, padding="valid",
+                                             activation="relu", strides=1)(posts_embedding)
+
                 pools.append(GlobalAveragePooling1D()(posts_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="posts_reg_out")(pools[-1]))
@@ -212,6 +218,12 @@ def FittingFriend(cfg):
                                              weights=[weights_matrix],
                                              input_length=maxlen_titles,
                                              trainable=fitcfg.get("train_embeddings", True))(titles_input)
+
+                if fitcfg.get("cnn", False):
+                    print "Using CNN layer in network, please check options for filter and kernel size."
+                    titles_embedding = Conv1D(250, 3, padding="valid",
+                                              activation="relu", strides=1)(titles_embedding)
+
                 pools.append(GlobalAveragePooling1D()(titles_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="titles_reg_out")(pools[-1]))
@@ -238,18 +250,15 @@ def FittingFriend(cfg):
 
             merged = concatenate(pools)
 
-            if fitcfg.get("cnn", False):
-                print "Using CNN layer in network, please check options for filter and kernel size."
-                merged = Conv1D(250, 3, padding="valid",
-                                activation="relu", strides=1)(merged)
-                merged = GlobalMaxPooling1D()(merged)
-
             # if fitcfg.get("LSTM", False):
                 # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
                 # model.add(Dropout(0.3))
 
             hidden_1 = Dense(256, activation="relu")(merged)
-            # hidden_1 = Dropout(0.2)(hidden_1)
+
+            if fitcfg.get("dropout", False):
+                hidden_1 = Dropout(0.2)(hidden_1)
+
             hidden_1 = BatchNormalization()(hidden_1)
 
             main_output = Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
