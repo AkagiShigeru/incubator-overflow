@@ -68,9 +68,11 @@ def AnalyzePosts(cfg, userposts=None, pids=None, debug=False):
     Analyze an existing post in db or custom user input.
     """
     if userposts is not None:
-        print "Analyzing posts provided by user"
+        if debug:
+            print "Analyzing posts provided by user"
     elif pids is not None:
-        print "Taking posts from db and caches..."
+        if debug:
+            print "Taking posts from db and caches..."
         # userpost = ...
         # todo implement
     else:
@@ -80,6 +82,8 @@ def AnalyzePosts(cfg, userposts=None, pids=None, debug=False):
     post_features = GetAllFeatures(userposts, cfg)
     if debug:
         print post_features
+
+    cfg.data["post_features"] = post_features
 
     res = {}
 
