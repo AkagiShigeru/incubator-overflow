@@ -114,12 +114,14 @@ def FittingFriend(cfg):
             if fitcfg.get("posts", True):
 
                 print "Retrieving relevant posts for training and testing."
-                if fitcfg.get("use_saved_posts", False):
+                if not fitcfg.get("use_saved_posts", False):
                     posts_train = GetDBPosts(qstrain.Id.values, conn)
                     posts_test = GetDBPosts(qstest.Id.values, conn)
+                    print "Pickling posts for training and testing to files..."
                     dill.dump(posts_train, open("./models/posts_train_%s.dill" % fitcfg["id"], "w"))
                     dill.dump(posts_test, open("./models/posts_test_%s.dill" % fitcfg["id"], "w"))
                 else:
+                    print "Using pickled posts."
                     posts_train = dill.load(open("./models/posts_train_%s.dill" % fitcfg["id"], "r"))
                     posts_test = dill.load(open("./models/posts_test_%s.dill" % fitcfg["id"], "r"))
 
@@ -358,14 +360,15 @@ def PlotPredictionVsLabels(df, preds, cfg):
     # result from "best" class
     goodpreds = preds[0].T[nclasses - 1]
 
-    mask = df.Score > 0
+    # mask = df.Score > 0
     plt.figure()
     plt.xlabel(r"Question score")
     plt.ylabel(r"Estimated probability of high score")
 
-    xbins = mquantiles(df.Score[mask], prob=np.linspace(0, 1, 20))
+    # xbins = mquantiles(df.Score[mask], prob=np.linspace(0, 1, 20))
+    xbins = mquantiles(df.Score, prob=np.linspace(0, 1, 20))
 
-    QuickSlicePlot(df.Score[mask], goodpreds[mask], goodpreds[mask], zbins=1, xbins=xbins, yrange=[0, 1],
+    QuickSlicePlot(df.Score, goodpreds, goodpreds, zbins=1, xbins=xbins, yrange=[0, 1],
                    draw="amv", color="k", ms=6, axes=plt.gca())
 
     plt.ylim(0., 1.)
