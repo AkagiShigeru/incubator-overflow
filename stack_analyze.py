@@ -119,10 +119,12 @@ def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
 
                 allfeatures.append(np.asarray(post_features[fneed]))
 
-        pred = model.predict(allfeatures)
+        pred = model.predict(allfeatures)[0]
         fitcfg["fitpred"] = pred
 
-        print pred
+        if debug:
+            print fitcfg["id"]
+            print pred
 
 
 def PrepareModels(cfg):
@@ -182,4 +184,4 @@ if __name__ == "__main__":
                 "UserName": "testuser"}
 
     cfg = PrepareModels(cfg)
-    AnalyzePost(cfg, userposts=[userpost], pids=None)
+    AnalyzePost(cfg, userposts=[userpost], pids=None, debug=True)
