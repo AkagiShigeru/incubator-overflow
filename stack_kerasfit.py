@@ -132,7 +132,7 @@ def FittingFriend(cfg):
                     dill.dump(word_tokenizer, open("./models/tokenizer_%s.dill" % fitcfg["id"], "w"))
                 else:
                     print "Using pre-fitted tokenizer %s..." % fitcfg["tokenizer"]
-                    word_tokenizer = dill.load(fitcfg["tokenizer"], "r")
+                    word_tokenizer = dill.load(open(fitcfg["tokenizer"], "r"))
 
                 print "Tokenizing..."
                 posts_train_tf = word_tokenizer.texts_to_sequences(posts_train)

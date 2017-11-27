@@ -92,7 +92,7 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}
@@ -122,7 +122,7 @@ def scoregroups(df, upqs=[0.1, 0.9]):
     return df.label
 
 # score groups
-fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.97])
+fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.96])
 fit_nn["grouplabels"] = ["normal", "good"]
 fit_nn["tokenizer"] = "./models/tokenizer_keras_tagprediction.dill"
 fit_nn["nsample"] = 200000
@@ -137,12 +137,12 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = False
-# fits.append(fit_nn.copy())
+fits.append(fit_nn.copy())
 
 
 fit_nn = {}
 fit_nn["id"] = "keras_scoreprediction"
-fit_nn["type"] = "keras_embedding"
+fit_nn["type"] = "keras_embedding_scores"
 fit_nn["name"] = "Predicting questions scores with word embeddings"
 fit_nn["embed_dim"] = 300
 fit_nn["embed_path"] = "/home/alex/data/glove.6B.%id.txt" % fit_nn["embed_dim"]
@@ -159,11 +159,12 @@ fit_nn["cat_features"] = ["weekday", "dayhour"]
 # fit_nn["labelfct"] = lambda df: np.asarray(df.Tags.apply(lambda x: "python" in x))
 
 # score groups
-fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.1, 0.95])
-fit_nn["grouplabels"] = ["bad", "normal", "good"]
-fit_nn["nsample"] = 400000
+fit_nn["labelfct"] = lambda df, fcfg: scoregroups(df, upqs=[0.1, 0.9, 0.97])
+fit_nn["grouplabels"] = ["bad", "normal", "good", "very good"]
+fit_nn["tokenizer"] = "./models/tokenizer_keras_tagprediction.dill"
+fit_nn["nsample"] = 200000
 fit_nn["seed"] = 42
-fit_nn["uniform"] = True
+fit_nn["uniform"] = False
 fit_nn["nepoch"] = 10
 fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2

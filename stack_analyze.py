@@ -125,8 +125,6 @@ def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
         print pred
 
 
-
-
 def PrepareModels(cfg):
 
     # loading word dictionary for feature calculation
@@ -178,7 +176,7 @@ if __name__ == "__main__":
             print "Creating non-existing directory {0}.".format(p)
             os.makedirs(p)
 
-    userpost = {"Body": "This is crappy testpost",
+    userpost = {"Body": "This is just a crappy testpost",
                 "Title": "testpost",
                 "CreationDate": "26/11/2017",
                 "UserName": "testuser"}
