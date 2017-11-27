@@ -366,7 +366,7 @@ def PlotPredictionVsLabels(df, preds, cfg):
     sfig = fig.add_axes([0.15, 0.11, 0.845, 0.78])
 
     plt.xlabel(r"Question score")
-    plt.ylabel(r"Estimated probability of high score")
+    plt.ylabel(r"Estimated probability of being a good question")
 
     print "Score bins are set by hand here"
     xbins = [df.Score.min(), 0, 1, 2, 3, 4, 6, 8, 10, 20, df.Score.max()]
