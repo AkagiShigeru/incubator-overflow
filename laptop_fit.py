@@ -94,6 +94,41 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
+# fits.append(fit_nn.copy())
+
+
+fit_nn = {}
+fit_nn["id"] = "keras_tagprediction_cnn"
+fit_nn["type"] = "keras_embedding_tags"
+fit_nn["name"] = "Predicting code topics / tags with word embeddings"
+fit_nn["embed_dim"] = 300
+fit_nn["embed_path"] = "/home/alex/data/glove.6B.%id.txt" % fit_nn["embed_dim"]
+fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
+fit_nn["nfeatures"] = 100000
+fit_nn["posts"] = True
+fit_nn["titles"] = True
+fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
+                      "BodySize", "titlelen", "nwords", "ordermean",
+                      "orderstd"]
+fit_nn["cat_features"] = ["weekday", "dayhour"]
+
+# identifying first n labels
+fit_nn["ntags"] = 30
+fit_nn["labelfct"] = lambda df, fcfg: np.asarray(df.Tags.apply(lambda x: LocateFirst(np.asarray(x), mostcommon_tags, fcfg["ntags"])))
+
+fit_nn["grouplabels"] = list(mostcommon_tags.iloc[:fit_nn["ntags"]].tags.values) + ["other"]
+fit_nn["nsample"] = 400000
+fit_nn["seed"] = 42
+fit_nn["uniform"] = False
+fit_nn["nepoch"] = 10
+fit_nn["nbatch"] = 100
+fit_nn["nsplit"] = 0.2
+fit_nn["save"] = True
+fit_nn["binary"] = False
+fit_nn["clean"] = False
+fit_nn["cnn"] = True
+fit_nn["train_embeddings"] = True
+fit_nn["from_cache"] = False
 fits.append(fit_nn.copy())
 
 
@@ -175,7 +210,7 @@ fit_nn["cnn"] = True
 fit_nn["dropout"] = True
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = True
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}

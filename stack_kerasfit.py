@@ -211,7 +211,7 @@ def FittingFriend(cfg):
 
                 if fitcfg.get("cnn", False):
                     print "Using CNN layer in network, please check options for filter and kernel size."
-                    posts_embedding = Conv1D(250, 3, padding="valid",
+                    posts_embedding = Conv1D(300, 3, padding="valid",
                                              activation="relu", strides=1)(posts_embedding)
 
                 pools.append(GlobalAveragePooling1D()(posts_embedding))
@@ -229,7 +229,7 @@ def FittingFriend(cfg):
 
                 if fitcfg.get("cnn", False):
                     print "Using CNN layer in network, please check options for filter and kernel size."
-                    titles_embedding = Conv1D(250, 3, padding="valid",
+                    titles_embedding = Conv1D(300, 3, padding="valid",
                                               activation="relu", strides=1)(titles_embedding)
 
                 pools.append(GlobalAveragePooling1D()(titles_embedding))
