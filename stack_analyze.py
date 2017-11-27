@@ -63,13 +63,12 @@ def GetAllFeatures(userposts, cfg, debug=False):
     return features
 
 
-def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
+def AnalyzePosts(cfg, userposts=None, pids=None, debug=False):
     """
     Analyze an existing post in db or custom user input.
     """
     if userposts is not None:
         print "Analyzing posts provided by user"
-        print userpost
     elif pids is not None:
         print "Taking posts from db and caches..."
         # userpost = ...
@@ -81,6 +80,8 @@ def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
     post_features = GetAllFeatures(userposts, cfg)
     if debug:
         print post_features
+
+    res = {}
 
     for fitcfg in cfg.fits:
 
@@ -121,10 +122,13 @@ def AnalyzePost(cfg, userposts=None, pids=None, debug=False):
 
         pred = model.predict(allfeatures)[0]
         fitcfg["fitpred"] = pred
+        res[fitcfg["id"]] = pred
 
         if debug:
             print fitcfg["id"]
             print pred
+
+    return res
 
 
 def PrepareModels(cfg):
@@ -187,4 +191,4 @@ if __name__ == "__main__":
                 "UserName": "testuser"}
 
     cfg = PrepareModels(cfg)
-    AnalyzePost(cfg, userposts=[userpost], pids=None, debug=True)
+    AnalyzePosts(cfg, userposts=[userpost], pids=None, debug=True)
