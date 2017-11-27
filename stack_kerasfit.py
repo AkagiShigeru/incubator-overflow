@@ -330,7 +330,7 @@ def FittingFriend(cfg):
             if fitcfg.get("type", False) == "keras_embedding_tags":
                 # plt.clear()
                 plt.figure()
-                cfg.mostcommon_tags.set_index("tags").head(20).plot.bar(ax=plt.gca())
+                cfg.mostcommon_tags.set_index("tags").head(fitcfg.get("ntags", 20)).plot.bar(ax=plt.gca())
                 plt.ylabel("Number of tagged questions")
                 plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%d"))
                 plt.savefig("./plots/hist_mostcommontags.pdf")
