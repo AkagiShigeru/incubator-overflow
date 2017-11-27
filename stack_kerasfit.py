@@ -329,16 +329,18 @@ def FittingFriend(cfg):
             test_preds = dill.load(open("./models/test_preds_%s.dill" % fitcfg["id"], "r"))
             test_df = dill.load(open("./models/test_df_%s.dill" % fitcfg["id"], "r"))
 
-        # embed()
-
         if fitcfg.get("plots", True):
 
-            train_log = pd.read_csv("./logging/training_%s.csv" % fitcfg["id"])
+            try:
+                train_log = pd.read_csv("./logging/training_%s.csv" % fitcfg["id"])
+            except:
+                train_log = None
 
             print "Making a few plots..."
-            PlotTrainingResult(train_log, fitcfg)
+            if train_log is not None:
+                PlotTrainingResult(train_log, fitcfg)
+
             PlotConfusionMatrix(test_truths, test_preds, fitcfg, labels=fitcfg.get("grouplabels", None))
-            # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
 
             if fitcfg.get("type", False) == "keras_embedding_scores":
                 PlotPredictionHistograms(test_truths, test_preds, fitcfg)
@@ -360,19 +362,36 @@ def PlotPredictionVsLabels(df, preds, cfg):
     # result from "best" class
     goodpreds = preds[0].T[nclasses - 1]
 
-    # mask = df.Score > 0
-    plt.figure()
+    fig = plt.figure()
+    sfig = fig.add_axes([0.15, 0.11, 0.845, 0.78])
+
     plt.xlabel(r"Question score")
     plt.ylabel(r"Estimated probability of high score")
 
-    # xbins = mquantiles(df.Score[mask], prob=np.linspace(0, 1, 20))
-    xbins = mquantiles(df.Score, prob=np.linspace(0, 1, 20))
+    print "Score bins are set by hand here"
+    xbins = [df.Score.min(), 0, 1, 2, 3, 4, 6, 8, 10, 20, df.Score.max()]
 
-    QuickSlicePlot(df.Score, goodpreds, goodpreds, zbins=1, xbins=xbins, yrange=[0, 1],
-                   draw="amv", color="k", ms=6, axes=plt.gca())
+    dummybins = np.arange(len(xbins) - 1)
+    binnedpreds = []
+    for i in range(len(xbins) - 1):
+        maski = (df.Score >= xbins[i]) & (df.Score < xbins[i + 1])
+        binnedpreds.append(goodpreds[maski])
+
+    ViolinPlot(dummybins, binnedpreds, bins=None,
+               axes=sfig, color="k", draw="amv")
+
+    def label_format(dbins):
+        labels = []
+        for dbin in dbins:
+            labels.append(r"[%i, %i)" % (xbins[dbin], xbins[dbin + 1]))
+        # print labels
+        return labels
+
+    sfig.set_xticks(dummybins)
+    sfig.set_xticklabels(label_format(dummybins), rotation=40, ha="right")
 
     plt.ylim(0., 1.)
-    plt.semilogx()
+    # plt.semilogx()
     plt.savefig("./plots/pred_probs_vs_class_score_%s.pdf" % cfg["id"])
 
 

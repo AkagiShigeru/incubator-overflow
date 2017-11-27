@@ -172,7 +172,7 @@ fit_nn["clean"] = True
 fit_nn["cnn"] = True
 fit_nn["dropout"] = True
 fit_nn["train_embeddings"] = True
-fit_nn["from_cache"] = False
+fit_nn["from_cache"] = True
 fits.append(fit_nn.copy())
 
 
