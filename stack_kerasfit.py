@@ -328,8 +328,8 @@ def FittingFriend(cfg):
                 PlotPredictionVsLabels(test_df, test_preds, fitcfg)
 
             if fitcfg.get("type", False) == "keras_embedding_tags":
-                # plt.clear()
-                plt.figure()
+                fig = plt.figure()
+                sfig = fig.add_axes([0.15, 0.11, 0.845, 0.78])
                 cfg.mostcommon_tags.set_index("tags").head(fitcfg.get("ntags", 20)).plot.bar(ax=plt.gca())
                 plt.ylabel("Number of tagged questions")
                 plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%d"))
