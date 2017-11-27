@@ -150,6 +150,7 @@ fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
 fit_nn["nfeatures"] = 50000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
+fit_nn["use_saved_posts"] = True
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]

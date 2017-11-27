@@ -114,8 +114,14 @@ def FittingFriend(cfg):
             if fitcfg.get("posts", True):
 
                 print "Retrieving relevant posts for training and testing."
-                posts_train = GetDBPosts(qstrain.Id.values, conn)
-                posts_test = GetDBPosts(qstest.Id.values, conn)
+                if fitcfg.get("use_saved_posts", False):
+                    posts_train = GetDBPosts(qstrain.Id.values, conn)
+                    posts_test = GetDBPosts(qstest.Id.values, conn)
+                    dill.dump(posts_train, open("./models/posts_train_%s.dill" % fitcfg["id"], "w"))
+                    dill.dump(posts_test, open("./models/posts_test_%s.dill" % fitcfg["id"], "w"))
+                else:
+                    posts_train = dill.load(open("./models/posts_train_%s.dill" % fitcfg["id"], "r"))
+                    posts_test = dill.load(open("./models/posts_test_%s.dill" % fitcfg["id"], "r"))
 
                 if fitcfg.get("clean", False):
                     print "Cleaning posts..."
