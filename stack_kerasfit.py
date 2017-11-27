@@ -322,10 +322,12 @@ def FittingFriend(cfg):
             PlotTrainingResult(train_log, fitcfg)
             PlotConfusionMatrix(test_truths, test_preds, fitcfg, labels=fitcfg.get("grouplabels", None))
             # PlotConfusionMatrix(test_truths, test_preds[0], fitcfg)
-            PlotPredictionHistograms(test_truths, test_preds, fitcfg)
-            PlotPredictionVsLabels(test_df, test_preds, fitcfg)
 
-            if False:
+            if fitcfg.get("type", False) == "keras_embedding_scores":
+                PlotPredictionHistograms(test_truths, test_preds, fitcfg)
+                PlotPredictionVsLabels(test_df, test_preds, fitcfg)
+
+            if fitcfg.get("type", False) == "keras_embedding_tags":
                 # plt.clear()
                 plt.figure()
                 cfg.mostcommon_tags.set_index("tags").head(20).plot.bar(ax=plt.gca())
