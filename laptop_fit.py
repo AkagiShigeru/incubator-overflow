@@ -32,6 +32,8 @@ dict_path = os.path.join(paths["dictionaries"], "merged.hdf5")
 features_path = os.path.join(paths["features"], "features_%s.hdf5" % year)
 mostcommontags_path = "./infos/most_common_tags.csv"
 mostcommon_tags = pd.read_csv(mostcommontags_path)
+feat_quantiles_path = "./info/feature_quantiles.csv"
+feat_quantiles = pd.read_csv(feat_quantiles_path)
 
 # options (what data to read etc)
 options = {}

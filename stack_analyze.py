@@ -139,6 +139,9 @@ def PrepareModels(cfg):
         wdict["order"] = np.arange(1, wdict.shape[0] + 1)
         cfg.data["wdict"] = wdict
 
+    if "fquantiles" not in cfg.data:
+        cfg.data["fquantiles"] = cfg.feat_quantiles
+
     for fitcfg in cfg.fits:
 
         print "Preparing %s." % fitcfg["id"]
