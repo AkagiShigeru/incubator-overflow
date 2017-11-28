@@ -107,6 +107,8 @@ fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
 fit_nn["nfeatures"] = 100000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
+fit_nn["use_saved_posts"] = True
+fit_nn["use_saved_events"] = False
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
@@ -126,6 +128,7 @@ fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True
 fit_nn["binary"] = False
 fit_nn["clean"] = False
+fit_nn["dropout"] = False
 fit_nn["cnn"] = True
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = False

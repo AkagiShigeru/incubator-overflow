@@ -78,19 +78,23 @@ def FittingFriend(cfg):
                 a.close()
                 return 0.
 
-            print "Calculating labels according to provided label function..."
-            qs["label"] = fitcfg["labelfct"](qs, fitcfg)
-            nsample = fitcfg.get("nsample", 100000)
-            seed = fitcfg.get("seed", np.random.randint(1e6))
+            if not fitcfg.get("use_saved_events", False):
+                print "Calculating labels according to provided label function..."
+                qs["label"] = fitcfg["labelfct"](qs, fitcfg)
+                nsample = fitcfg.get("nsample", 100000)
+                seed = fitcfg.get("seed", np.random.randint(1e6))
 
-            if fitcfg.get("uniform", True):
+                if fitcfg.get("uniform", True):
 
-                print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
-                qssel = SelectUniformlyFromColumn(qs, "label", n=nsample, seed=seed)
+                    print "Selecting a sample of %i posts uniformly and randomly within each group." % nsample
+                    qssel = SelectUniformlyFromColumn(qs, "label", n=nsample, seed=seed)
 
+                else:
+                    print "Selecting a sample of %i posts randomly." % nsample
+                    qssel = qs.sample(nsample, random_state=seed)
+                dill.dump(qssel, open("./models/selevents_%s.dill" % fitcfg["id"], "w"))
             else:
-                print "Selecting a sample of %i posts randomly." % nsample
-                qssel = qs.sample(nsample, random_state=seed)
+                qssel = dill.load(open("./models/selevents_%s.dill" % fitcfg["id"], "r"))
 
             if fitcfg.get("binary", False):
                 nouts = 1
