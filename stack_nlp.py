@@ -97,7 +97,12 @@ def PrepareData(cfg, verbose=False):
 
     print "Using meta path:", cfg.meta_path
 
-    conn = sqlite3.connect(cfg.posts_path)
+    try:
+        conn = sqlite3.connect(cfg.posts_path)
+    except:
+        print "Database connection is not available, please be aware of that!"
+        conn = None
+
     store_meta = pd.HDFStore(cfg.meta_path, "r", complib="blosc", complevel=9)
     store_dict = pd.HDFStore(cfg.dict_path, "r", complib="blosc", complevel=9)
     store_feat = pd.HDFStore(cfg.features_path, "r", complib="blosc", complevel=9)
