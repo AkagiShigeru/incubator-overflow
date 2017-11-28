@@ -13,7 +13,7 @@ import pandas as pd
 
 # paths
 paths = {}
-paths["caches"] = "../data/"
+paths["caches"] = "/home/ubuntu/data/stack/"
 paths["db"] = os.path.join(paths["caches"], "posts.db")
 paths["metas"] = paths["caches"]
 paths["features"] = os.path.join(paths["caches"], "features_new/")
