@@ -127,9 +127,9 @@ fit_nn["nbatch"] = 100
 fit_nn["nsplit"] = 0.2
 fit_nn["save"] = True
 fit_nn["binary"] = False
-fit_nn["clean"] = False
-fit_nn["dropout"] = False
-fit_nn["cnn"] = True
+fit_nn["clean"] = True
+fit_nn["dropout"] = True
+# fit_nn["cnn"] = True
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = False
 fits.append(fit_nn.copy())
