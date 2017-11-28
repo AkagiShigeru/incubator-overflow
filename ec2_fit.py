@@ -108,6 +108,7 @@ fit_nn["nfeatures"] = 100000
 fit_nn["posts"] = True
 fit_nn["titles"] = True
 fit_nn["use_saved_posts"] = True
+fit_nn["use_saved_events"] = False
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
                       "BodySize", "titlelen", "nwords", "ordermean",
                       "orderstd"]
