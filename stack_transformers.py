@@ -44,8 +44,10 @@ class DictEncoder(base.BaseEstimator, base.TransformerMixin):
         return self
 
     def transform(self, X):
-        a = X[self.col_name].apply(Counter)
-        return a
+        enc = []
+        for row in X:
+            enc.append(Counter(row))
+        return enc
 
 
 class EstimatorTransformer(base.BaseEstimator, base.TransformerMixin):
