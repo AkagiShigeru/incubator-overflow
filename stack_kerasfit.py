@@ -108,8 +108,10 @@ def FittingFriend(cfg):
 
             print "Output label dimensions:", nouts
 
-            print "Opening embedding vectors"
-            gmod = KeyedVectors.load_word2vec_format(fitcfg["embed_out"], binary=not fitcfg.get("train_embeddings", True))
+            use_pre_embeds = fitcfg.get("premade_embeddings", True)
+            if use_pre_embeds:
+                print "Opening embedding vectors"
+                gmod = KeyedVectors.load_word2vec_format(fitcfg["embed_out"], binary=not fitcfg.get("train_embeddings", True))
 
             inp_data = []
             inp_test_data = []
@@ -194,11 +196,15 @@ def FittingFriend(cfg):
 
                 if i > fitcfg["nfeatures"]:
                     continue
-                try:
-                    embedding_vector = gmod.word_vec(word)
-                    if embedding_vector is not None:
-                        weights_matrix[i] = embedding_vector
-                except:
+
+                if use_pre_embeds:
+                    try:
+                        embedding_vector = gmod.word_vec(word)
+                        if embedding_vector is not None:
+                            weights_matrix[i] = embedding_vector
+                    except:
+                        weights_matrix[i] = np.zeros(fitcfg["embed_dim"])
+                else:
                     weights_matrix[i] = np.zeros(fitcfg["embed_dim"])
 
             pools = []
