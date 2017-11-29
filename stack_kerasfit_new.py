@@ -219,10 +219,12 @@ def FittingFriend(cfg):
                                             input_length=maxlen_posts,
                                             trainable=fitcfg.get("train_embeddings", True))(posts_input)
 
-                if fitcfg.get("cnn", False):
-                    print "Using CNN layer in network, please check options for filter and kernel size."
-                    posts_embedding = Conv1D(300, 3, padding="valid",
-                                             activation="relu", strides=1)(posts_embedding)
+                avgpool = AveragePooling1D(pool_size=10)(posts_embedding)
+                gavgpool = GlobalAveragePooling1D()(posts_embedding)
+                posts_embedding = concatenate([avgpool, gavgpool])
+
+                posts_embedding = Conv1D(300, 3, padding="valid",
+                                         activation="relu", strides=1)(posts_embedding)
 
                 pools.append(GlobalAveragePooling1D()(posts_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
@@ -237,10 +239,12 @@ def FittingFriend(cfg):
                                              input_length=maxlen_titles,
                                              trainable=fitcfg.get("train_embeddings", True))(titles_input)
 
-                if fitcfg.get("cnn", False):
-                    print "Using CNN layer in network, please check options for filter and kernel size."
-                    titles_embedding = Conv1D(300, 3, padding="valid",
-                                              activation="relu", strides=1)(titles_embedding)
+                avgpool = AveragePooling1D(pool_size=10)(titles_embedding)
+                gavgpool = GlobalAveragePooling1D()(titles_embedding)
+                titles_embedding = concatenate([avgpool, gavgpool])
+
+                titles_embedding = Conv1D(300, 3, padding="valid",
+                                          activation="relu", strides=1)(titles_embedding)
 
                 pools.append(GlobalAveragePooling1D()(titles_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
