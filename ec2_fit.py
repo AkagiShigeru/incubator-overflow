@@ -144,8 +144,8 @@ fit_nn["embed_dim"] = 300
 fit_nn["embed_path"] = "/home/ubuntu/data/stack/glove.6B.%id.txt" % fit_nn["embed_dim"]
 fit_nn["embed_out"] = "./glove.6B.%id.txt.word2vec" % fit_nn["embed_dim"]
 fit_nn["nfeatures"] = 50000
-fit_nn["posts"] = False
-fit_nn["titles"] = True
+fit_nn["posts"] = True
+fit_nn["titles"] = False
 fit_nn["use_saved_posts"] = True
 fit_nn["use_saved_events"] = False
 fit_nn["features"] = ["BodyNCodes", "BodyNQMarks",
@@ -172,7 +172,7 @@ fit_nn["cnn"] = True
 fit_nn["premade_embeddings"] = False
 fit_nn["train_embeddings"] = True
 fit_nn["from_cache"] = False
-fits.append(fit_nn.copy())
+# fits.append(fit_nn.copy())
 
 
 fit_nn = {}
