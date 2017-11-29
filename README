@@ -11,3 +11,5 @@ There are several NLP analyses included in jupter notebooks within this reposito
 stack_kerasfit.py together with the config files, e.g. laptop_fit.py, provides an interface to do a neural network analysis of posts using GloVe word embeddings (these are not included in the repository and need to be obtained).
 
 An example pipeline of working with those scripts would be to start by reading the notebook stackoverflow-basic.ipynb, which documents where to get the data dump from etc. Afterwards, stack_readin.py needs to be used to process xml dumps and save relevant information into hdf stores. stack_words.py can be used to generate additional stores with NLP features (word dictionaries, bag of words models). These stores are to be used in conjunction with the analysis notebooks and with the neural network analysis in stack_kerasfit.py.
+
+User information can be obtained from stack_users.py. Please note that we did not extensively use this script, so be extra careful about possible bugs.
