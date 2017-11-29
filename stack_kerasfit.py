@@ -272,7 +272,7 @@ def FittingFriend(cfg):
                 # model.add(LSTM(int(document_max_num_words*1.5), input_shape=(document_max_num_words, num_features)))
                 # model.add(Dropout(0.3))
 
-            hidden_1 = Dense(256, activation="relu")(merged)
+            hidden_1 = Dense(500, activation="sigmoid")(merged)
 
             if fitcfg.get("dropout", False):
                 hidden_1 = Dropout(0.2)(hidden_1)
@@ -287,7 +287,7 @@ def FittingFriend(cfg):
             model.compile(loss="binary_crossentropy" if nouts == 1 else "categorical_crossentropy",
                           optimizer="adam",
                           metrics=["accuracy"],
-                          loss_weights=[1, 0.2, 0.2])
+                          loss_weights=[1, 0.1, 0.1])
 
             print model.summary()
 
