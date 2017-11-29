@@ -48,7 +48,8 @@ from keras.layers import Flatten
 from keras.layers import LSTM, Conv1D
 from sklearn.model_selection import train_test_split
 from keras.models import Input, Model
-from keras.layers import Dense, Embedding, GlobalAveragePooling1D, AveragePooling1D, concatenate, Activation
+from keras.layers import Dense, Embedding, concatenate, Activation
+from keras.layers import GlobalAveragePooling1D, AveragePooling1D, MaxPooling1D, GlobalMaxPooling1D
 from keras.layers.core import Masking, Dropout, Reshape
 from keras.layers.normalization import BatchNormalization
 

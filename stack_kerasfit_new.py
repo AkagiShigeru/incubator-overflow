@@ -219,14 +219,14 @@ def FittingFriend(cfg):
                                             input_length=maxlen_posts,
                                             trainable=fitcfg.get("train_embeddings", True))(posts_input)
 
-                avgpool = AveragePooling1D(pool_size=10)(posts_embedding)
-                gavgpool = GlobalAveragePooling1D()(posts_embedding)
-                posts_embedding = concatenate([avgpool, gavgpool])
+                avgpool = MaxPooling1D(pool_size=10)(posts_embedding)
+                # gavgpool = GlobalMaxPooling1D()(posts_embedding)
+                # posts_embedding = concatenate([avgpool, gavgpool])
 
-                posts_embedding = Conv1D(300, 3, padding="valid",
-                                         activation="relu", strides=1)(posts_embedding)
+                posts_embedding = Conv1D(50, 3, padding="valid",
+                                         activation="relu", strides=1)(avgpool)
 
-                pools.append(GlobalAveragePooling1D()(posts_embedding))
+                pools.append(GlobalMaxPooling1D()(posts_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="posts_reg_out")(pools[-1]))
                 inps.append(posts_input)
@@ -239,14 +239,14 @@ def FittingFriend(cfg):
                                              input_length=maxlen_titles,
                                              trainable=fitcfg.get("train_embeddings", True))(titles_input)
 
-                avgpool = AveragePooling1D(pool_size=10)(titles_embedding)
-                gavgpool = GlobalAveragePooling1D()(titles_embedding)
-                titles_embedding = concatenate([avgpool, gavgpool])
+                avgpool = MaxPooling1D(pool_size=10)(titles_embedding)
+                # gavgpool = GlobalMaxPooling1D()(titles_embedding)
+                # titles_embedding = concatenate([avgpool, gavgpool])
 
-                titles_embedding = Conv1D(300, 3, padding="valid",
-                                          activation="relu", strides=1)(titles_embedding)
+                titles_embedding = Conv1D(50, 3, padding="valid",
+                                          activation="relu", strides=1)(avgpool)
 
-                pools.append(GlobalAveragePooling1D()(titles_embedding))
+                pools.append(GlobalMaxPooling1D()(titles_embedding))
                 outs.append(Dense(nouts, activation="sigmoid" if nouts == 1 else "softmax",
                                   name="titles_reg_out")(pools[-1]))
                 inps.append(titles_input)
